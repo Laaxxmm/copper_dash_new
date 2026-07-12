@@ -6,8 +6,13 @@
 #   3. Set environment variables:
 #        DATABASE_PATH = /data/copper.db     (database lives on the volume, survives deploys)
 #        NIXPACKS_NODE_VERSION = 22          (node:sqlite needs Node 22+)
+#        ADMIN_USER = admin                  (login username; default "admin")
+#        ADMIN_PASSWORD = <your password>    (login password; default "admin123" — change it!)
+#        AUTH_SECRET = <long random string>  (signs the session cookie)
+#        SEED_DEMO = off                     (optional: boot with an empty register, no demo data)
 #   4. Generate a public domain under Settings → Networking.
-# The database creates its own schema on first boot — start entering real data straight away.
+# On first boot the app creates its schema and loads demo data (unless SEED_DEMO=off).
+# Sign in, look around, then Settings → Erase all data to start your real register clean.
 
 [build]
 builder = "NIXPACKS"

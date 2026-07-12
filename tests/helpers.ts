@@ -14,8 +14,9 @@ let dir: string | null = null;
 export function useTestDb() {
   dir = mkdtempSync(join(tmpdir(), 'copperbook-test-'));
   process.env.DATABASE_PATH = join(dir, 'test.db');
+  process.env.SEED_DEMO = 'off'; // tests control their own data
   closeDb();
-  getDb(); // fresh file → schema is applied automatically
+  getDb(); // fresh file → schema applied, but not seeded
 }
 
 export function destroyTestDb() {

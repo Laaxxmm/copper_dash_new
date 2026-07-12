@@ -68,7 +68,15 @@ The repo is Railway-ready ([railway.toml](railway.toml)). Steps:
 3. Set variables: `DATABASE_PATH=/data/copper.db` and `NIXPACKS_NODE_VERSION=22`.
 4. **Settings → Networking → Generate Domain** — that URL works from any phone or laptop.
 
-On first boot the app creates the database schema itself (empty, ready for real entries — no demo data in production). Backup = download the volume file, or run a scheduled job that copies `/data/copper.db`.
+On first boot the app creates its schema and loads demo data so there's something to see. Sign in, explore, then **Settings → Erase all data** to start your real register clean. Set `SEED_DEMO=off` to boot empty instead. Backup = download the volume file, or a scheduled job copying `/data/copper.db`.
+
+**Login** is required (gated by middleware). Defaults are `admin` / `admin123` — override with env vars:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `ADMIN_USER` / `ADMIN_PASSWORD` | Login credentials | `admin` / `admin123` |
+| `AUTH_SECRET` | Signs the session cookie (set a long random string) | dev fallback |
+| `SEED_DEMO` | `off` = boot with an empty register | seed on |
 
 ## Reports
 

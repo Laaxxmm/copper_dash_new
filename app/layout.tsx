@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Spectral, Hanken_Grotesk, Spline_Sans_Mono } from 'next/font/google';
 import './globals.css';
 import Nav from '@/components/Nav';
+import { logout } from '@/lib/auth-actions';
 
 const display = Spectral({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-display' });
 const body = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-body' });
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="brand-sub">Trade Register</div>
             <Nav />
             <div className="nav-foot">
-              All figures live from the trade register. Prices in ₹ per kg unless marked.
+              <form action={logout}>
+                <button type="submit" className="nav-signout">Sign out</button>
+              </form>
+              <div style={{ marginTop: 10 }}>All figures live from the trade register. Prices in ₹ per kg unless marked.</div>
             </div>
           </aside>
           <main className="main">{children}</main>

@@ -42,6 +42,10 @@ const LINKS = [
     href: '/reports', label: 'Reports',
     icon: <svg {...S}><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M4 19h16" /></svg>,
   },
+  {
+    href: '/settings', label: 'Settings',
+    icon: <svg {...S}><circle cx="12" cy="12" r="3.2" /><path d="M12 3.5v2.5M12 18v2.5M4.5 7.5l2.2 1.3M17.3 15.2l2.2 1.3M19.5 7.5l-2.2 1.3M6.7 15.2l-2.2 1.3" /></svg>,
+  },
 ];
 
 export default function Nav() {
