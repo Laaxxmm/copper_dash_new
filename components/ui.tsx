@@ -1,0 +1,68 @@
+import { cspToday } from '@/lib/queries';
+import { perKg, dateLong, inrFull } from '@/lib/format';
+
+export function PageHead({ title, sub }: { title: string; sub: string }) {
+  const csp = cspToday();
+  const up = csp.change >= 0;
+  return (
+    <header className="page-head">
+      <div>
+        <h1 className="page-title">{title}</h1>
+        <p className="page-sub">{sub}</p>
+      </div>
+      <div className="head-price">
+        <div className="lbl">Copper price · {dateLong(csp.date)}</div>
+        <div className="val" title={`${inrFull(csp.price)} per MT`}>
+          {perKg(csp.price)}{' '}
+          <span className={up ? 'pos' : 'neg'}>{up ? '▲' : '▼'} {Math.abs(csp.change / 1000).toFixed(1)}</span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export function Tile({ label, value, note, tone, accent }: {
+  label: string; value: string; note?: React.ReactNode;
+  tone?: 'good' | 'bad' | 'warn'; accent?: boolean;
+}) {
+  return (
+    <div className={`card tile${tone ? ` t-${tone}` : ''}${accent ? ' accent' : ''}`}>
+      <div className="t-label">{label}</div>
+      <div className="t-value">{value}</div>
+      {note ? <div className="t-note">{note}</div> : null}
+    </div>
+  );
+}
+
+export function Badge({ tone, children }: { tone: 'good' | 'warn' | 'bad' | 'neutral' | 'copper'; children: React.ReactNode }) {
+  return <span className={`badge ${tone}`}><span className="dot" />{children}</span>;
+}
+
+/** One place for the booking status → pill mapping (PRD: Running=amber, Finished=green). */
+export function StatusBadge({ status }: { status: string }) {
+  if (status === 'OPEN') return <Badge tone="warn">Running</Badge>;
+  if (status === 'COMPLETED') return <Badge tone="good">Finished</Badge>;
+  return <Badge tone="bad">Cancelled</Badge>;
+}
+
+/** Booking progress: how much is priced, how much has moved. Plain and visual. */
+export function Pipeline({ qty, fixed, lifted }: { qty: number; fixed: number; lifted: number }) {
+  const pct = (x: number) => Math.min(100, Math.round((x / qty) * 100));
+  const rows = [
+    { label: 'Priced', value: fixed, cls: 'price' },
+    { label: 'Moved', value: lifted, cls: '' },
+  ];
+  return (
+    <div className="pipe">
+      {rows.map((r) => (
+        <div className="pipe-row" key={r.label}>
+          <span className="plabel">{r.label}</span>
+          <span className="pipe-bar">
+            <span className={`pipe-fill ${pct(r.value) >= 100 ? 'full' : r.cls}`} style={{ width: `${pct(r.value)}%` }} />
+          </span>
+          <span className="pipe-pct">{r.value.toLocaleString('en-IN', { maximumFractionDigits: 1 })}/{qty}</span>
+        </div>
+      ))}
+    </div>
+  );
+}

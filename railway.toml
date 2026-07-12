@@ -1,0 +1,21 @@
+# Railway deployment config for CopperBook.
+#
+# One-time setup in the Railway dashboard:
+#   1. New Project → Deploy from GitHub repo (or `railway up` from this folder).
+#   2. Add a Volume to the service, mount path: /data
+#   3. Set environment variables:
+#        DATABASE_PATH = /data/copper.db     (database lives on the volume, survives deploys)
+#        NIXPACKS_NODE_VERSION = 22          (node:sqlite needs Node 22+)
+#   4. Generate a public domain under Settings → Networking.
+# The database creates its own schema on first boot — start entering real data straight away.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "npm run start"
+healthcheckPath = "/"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
