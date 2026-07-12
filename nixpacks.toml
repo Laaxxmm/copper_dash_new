@@ -1,0 +1,9 @@
+# Railway/Nixpacks build overrides.
+#
+# Install with `npm install` instead of the default `npm ci`. `npm ci` demands
+# the lock file already list every platform's optional binary deps (e.g. Linux
+# @emnapi / rollup builds); a lock generated on macOS can't guarantee that, so
+# `npm ci` fails on Railway's Linux builders. `npm install` resolves the correct
+# binaries for the build platform. Node version comes from NIXPACKS_NODE_VERSION.
+[phases.install]
+cmds = ["npm install --no-audit --no-fund"]
