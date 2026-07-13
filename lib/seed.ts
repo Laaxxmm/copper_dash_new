@@ -80,6 +80,7 @@ export function seedDemo(db: DatabaseSync) {
   const upBasis = db.prepare(`UPDATE parties SET exchange_basis = ? WHERE id = ?`);
   supplierIds.forEach((id, i) => upBasis.run(supTerms[i][6], id));
   customerIds.forEach((id, i) => upBasis.run(i % 2 ? 'SBI_TT' : 'RBI_TT', id));
+  db.prepare(`UPDATE parties SET email = 'sales@' || lower(substr(name,1,instr(name||' ',' ')-1)) || '.com'`).run();
 
   const prodRows = db.prepare(`SELECT id, type, size_mm FROM products`).all() as { id: number; type: string; size_mm: number }[];
   const insTerm = db.prepare(
@@ -348,6 +349,10 @@ export function seedDemo(db: DatabaseSync) {
   const rb = Number(insReq.run(`REQ-${ym}-002`, customerIds[3], rod8, 12, addDays(TODAY, 14), Math.round((rateOf(termOf(supplierIds[4], rod8)) + 8) * 10) / 10, 'OPEN', TODAY, null).lastInsertRowid);
   makeAlloc(rb, supplierIds[4], rod8, 5, 'L1', false);
   db.prepare(`UPDATE requirements SET status='PARTIAL' WHERE id=?`).run(rb);
-  // C — open 8 MT, no legs yet
-  insReq.run(`REQ-${ym}-003`, customerIds[0], w575, 8, addDays(TODAY, 20), sellTarget(), 'OPEN', TODAY, null);
+  // C — 8 MT with one enquiry sent (no booking yet), 4 MT still to source
+  const rc = Number(insReq.run(`REQ-${ym}-003`, customerIds[0], w575, 8, addDays(TODAY, 20), sellTarget(), 'OPEN', TODAY, null).lastInsertRowid);
+  db.prepare(
+    `INSERT INTO allocations (requirement_id,supplier_id,tier_label,qty_mt,rate_inr_kg,booking_id,status,created_date,sent_at,notes)
+     VALUES (?,?,?,?,?,NULL,'ENQUIRY',?,?,NULL)`).run(rc, supplierIds[0], 'L1', 4, rateOf(termOf(supplierIds[0], w575)), TODAY, TODAY);
+  db.prepare(`UPDATE requirements SET status='PARTIAL' WHERE id=?`).run(rc);
 }

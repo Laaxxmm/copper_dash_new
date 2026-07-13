@@ -273,6 +273,9 @@ export default async function AddPage({ searchParams }: { searchParams: Promise<
             <label>GSTIN
               <input name="gstin" type="text" placeholder="15 characters, from their bill" />
             </label>
+            <label>Email (for ordering slips)
+              <input name="email" type="email" placeholder="sales@firm.com" />
+            </label>
             <label>Payment terms (credit days)
               <input name="credit_days" type="number" min="0" max="365" defaultValue={0} />
               <span className="field-hint">0 = advance payment before material</span>

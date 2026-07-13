@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHead, Tile, Badge } from '@/components/ui';
-import { allocations, blended, requirement } from '@/lib/requirements';
+import { allocations, blended, enquiryMailto, requirement } from '@/lib/requirements';
 import { supplierBoard } from '@/lib/pricing';
-import { addAllocation, cancelAllocation, cancelRequirement } from '@/lib/req-actions';
+import { cancelAllocation, cancelRequirement, confirmEnquiry, sendEnquiry } from '@/lib/req-actions';
 import { dateShort, mt } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -100,7 +100,17 @@ export default async function RequirementDetail({ params, searchParams }: {
                   <td>{l.booked_rate_inr_kg != null ? <Badge tone="good">final ₹{l.booked_rate_inr_kg.toFixed(2)}</Badge> : <span className="muted">provisional</span>}</td>
                   <td>{l.booking_no ? <Link href="/bookings" className="mono-sm" style={{ color: 'var(--copper-text)' }}>{l.booking_no}</Link> : '—'}</td>
                   <td><Badge tone={s.tone}>{s.label}</Badge></td>
-                  <td>
+                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {l.status === 'ENQUIRY' && (
+                      <>
+                        <a className="btn-order outline" href={enquiryMailto({ email: l.supplier_email, supplier: l.supplier, reqNo: r.req_no, product: r.product_desc, qty: l.qty_mt, needBy: r.need_by_date, rate: l.rate_inr_kg })}>Email</a>
+                        <form action={confirmEnquiry}>
+                          <input type="hidden" name="allocation_id" value={l.id} />
+                          <input type="hidden" name="requirement_id" value={r.id} />
+                          <button type="submit" className="btn-order" style={{ cursor: 'pointer' }}>Confirm PI</button>
+                        </form>
+                      </>
+                    )}
                     {l.status !== 'CANCELLED' && !cancelled && (
                       <form action={cancelAllocation}>
                         <input type="hidden" name="allocation_id" value={l.id} />
@@ -117,8 +127,8 @@ export default async function RequirementDetail({ params, searchParams }: {
       </div>
 
       {!cancelled && r.remaining > 0.01 && (
-        <form action={addAllocation} className="card card-pad form section-gap">
-          <div className="card-title">Add a supplier leg — {mt(r.remaining)} still to source</div>
+        <form action={sendEnquiry} className="card card-pad form section-gap">
+          <div className="card-title">Request a quote — {mt(r.remaining)} still to source</div>
           <div className="form-grid">
             <label>Supplier (L1 is cheapest today)
               <select name="supplier_id" required defaultValue="">
@@ -137,7 +147,8 @@ export default async function RequirementDetail({ params, searchParams }: {
           </div>
           <input type="hidden" name="requirement_id" value={r.id} />
           <input type="hidden" name="req_no" value={r.req_no} />
-          <button className="btn" type="submit">Add leg (creates the purchase booking)</button>
+          <button className="btn" type="submit">Send enquiry</button>
+          <p className="chart-note">Records the leg as an enquiry. Then click <b>Email</b> to send it from your mail app, and <b>Confirm PI</b> when the supplier replies.</p>
         </form>
       )}
 

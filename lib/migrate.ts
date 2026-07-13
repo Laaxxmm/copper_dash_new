@@ -79,6 +79,8 @@ export function migrate(db: DatabaseSync) {
   if (!colset('parties').has('exchange_basis')) {
     db.prepare(`ALTER TABLE parties ADD COLUMN exchange_basis TEXT DEFAULT 'RBI_TT'`).run();
   }
+  if (!colset('parties').has('email')) db.prepare(`ALTER TABLE parties ADD COLUMN email TEXT`).run();
+  if (colset('allocations').size && !colset('allocations').has('sent_at')) db.prepare(`ALTER TABLE allocations ADD COLUMN sent_at TEXT`).run();
 
   const insP = db.prepare(`INSERT OR IGNORE INTO products (type, size_mm, description) VALUES (?,?,?)`);
   for (const p of WIRE_ROD) insP.run(p[0], p[1], p[2]);

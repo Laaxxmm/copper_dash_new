@@ -5,8 +5,8 @@ class Redirected extends Error { constructor(public url: string) { super(url); }
 vi.mock('next/navigation', () => ({ redirect: (url: string) => { throw new Redirected(url); } }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { addAllocation, addRequirement, cancelAllocation } from '@/lib/req-actions';
-import { allocations, blended, requirement, requirements } from '@/lib/requirements';
+import { addAllocation, addRequirement, cancelAllocation, confirmEnquiry, sendEnquiry } from '@/lib/req-actions';
+import { allocations, blended, enquiryMailto, requirement, requirements } from '@/lib/requirements';
 import { products } from '@/lib/pricing';
 import { get, run } from '@/lib/db';
 
@@ -89,5 +89,37 @@ describe('requirement / split lifecycle', () => {
     const row = requirements().find((r) => r.id === reqId)!;
     expect(row.sourced).toBe(15);
     expect(row.remaining).toBe(10);
+  });
+});
+
+describe('ordering slip (Phase 3)', () => {
+  let reqId: number;
+  beforeAll(async () => {
+    const url = await ends(addRequirement, { product_id: prodId, qty: 6 });
+    reqId = Number(url.split('/').pop());
+  });
+
+  it('sending an enquiry records an ENQUIRY leg with no booking', async () => {
+    await ends(sendEnquiry, { requirement_id: reqId, supplier_id: s1, qty: 6 });
+    const [leg] = allocations(reqId);
+    expect(leg.status).toBe('ENQUIRY');
+    expect(leg.booking_id).toBeNull();
+    expect(leg.sent_at).not.toBeNull();
+    expect(requirement(reqId)!.status).toBe('FILLED'); // sourced counts enquiries too
+  });
+
+  it('confirming the PI creates the booking and advances the leg', async () => {
+    const leg = allocations(reqId)[0];
+    await ends(confirmEnquiry, { allocation_id: leg.id, requirement_id: reqId });
+    const after = allocations(reqId)[0];
+    expect(after.status).toBe('PI_RECEIVED');
+    expect(after.booking_no).toMatch(/^PB-/);
+  });
+
+  it('builds a correctly-addressed mailto', () => {
+    const m = enquiryMailto({ email: 'sales@acme.com', supplier: 'Acme', reqNo: 'REQ-1', product: '1.60 mm wire', qty: 5, needBy: '2026-07-20', rate: 1250 });
+    expect(m.startsWith('mailto:sales@acme.com?subject=')).toBe(true);
+    expect(decodeURIComponent(m)).toContain('5 MT 1.60 mm wire');
+    expect(decodeURIComponent(m)).toContain('Please send your PI');
   });
 });

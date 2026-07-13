@@ -37,6 +37,7 @@ export async function addParty(fd: FormData) {
   const contact = str(fd, 'contact') || null;
   const phone = str(fd, 'phone') || null;
   const gstin = str(fd, 'gstin').toUpperCase() || null;
+  const email = str(fd, 'email') || null;
   const creditDays = num(fd, 'credit_days');
   const notes = str(fd, 'notes') || null;
 
@@ -47,8 +48,8 @@ export async function addParty(fd: FormData) {
   const dup = get<{ id: number }>(`SELECT id FROM parties WHERE LOWER(name) = LOWER(?)`, name);
   if (dup) fail('party', `"${name}" is already in the list — open People to see them.`);
 
-  run(`INSERT INTO parties (name, type, city, contact_person, phone, gstin, credit_days, notes)
-       VALUES (?,?,?,?,?,?,?,?)`, name, type, city, contact, phone, gstin, creditDays, notes);
+  run(`INSERT INTO parties (name, type, city, contact_person, phone, gstin, email, credit_days, notes)
+       VALUES (?,?,?,?,?,?,?,?,?)`, name, type, city, contact, phone, gstin, email, creditDays, notes);
   refresh();
   redirect('/parties');
 }

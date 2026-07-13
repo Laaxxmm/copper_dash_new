@@ -37,16 +37,16 @@ export function requirement(id: number) {
 }
 
 export type AllocationRow = {
-  id: number; requirement_id: number; supplier_id: number; supplier: string;
-  tier_label: string | null; qty_mt: number; rate_inr_kg: number | null; status: string;
+  id: number; requirement_id: number; supplier_id: number; supplier: string; supplier_email: string | null;
+  tier_label: string | null; qty_mt: number; rate_inr_kg: number | null; status: string; sent_at: string | null;
   booking_id: number | null; booking_no: string | null;
   booked_rate_inr_kg: number | null;  // final rate from the linked booking's fixations, if priced
 };
 
 export function allocations(requirementId: number): AllocationRow[] {
   return all<AllocationRow>(
-    `SELECT a.id, a.requirement_id, a.supplier_id, sp.name supplier, a.tier_label, a.qty_mt,
-            a.rate_inr_kg, a.status, a.booking_id, b.booking_no,
+    `SELECT a.id, a.requirement_id, a.supplier_id, sp.name supplier, sp.email supplier_email,
+            a.tier_label, a.qty_mt, a.rate_inr_kg, a.status, a.sent_at, a.booking_id, b.booking_no,
             (SELECT ROUND(SUM(f.qty_mt * f.price_inr_mt) / SUM(f.qty_mt) / 1000, 2)
              FROM price_fixations f WHERE f.booking_id = a.booking_id) booked_rate_inr_kg
      FROM allocations a
@@ -54,6 +54,23 @@ export function allocations(requirementId: number): AllocationRow[] {
      LEFT JOIN bookings b ON b.id = a.booking_id
      WHERE a.requirement_id = ?
      ORDER BY a.rate_inr_kg IS NULL, a.rate_inr_kg, a.id`, requirementId);
+}
+
+/** Ordering-slip mailto: opens the client's own mail app, pre-addressed and pre-filled. */
+export function enquiryMailto(o: {
+  email: string | null; supplier: string; reqNo: string; product: string; qty: number; needBy: string | null; rate: number | null;
+}): string {
+  const subject = `Enquiry ${o.reqNo}: ${o.qty} MT ${o.product}`;
+  const body = [
+    `Dear ${o.supplier},`, '',
+    `We wish to book the following against our requirement ${o.reqNo}:`,
+    `  Product : ${o.product}`,
+    `  Quantity: ${o.qty} MT`,
+    o.needBy ? `  Need by : ${o.needBy}` : '',
+    o.rate ? `  Indicative rate: ₹${o.rate.toFixed(2)}/kg` : '',
+    '', 'Please send your PI. Thank you.',
+  ].filter(Boolean).join('\n');
+  return `mailto:${o.email ?? ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 /** Blended cost: provisional over all live legs; booked over legs with a priced booking. */
