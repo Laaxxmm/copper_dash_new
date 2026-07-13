@@ -5,8 +5,8 @@ import type { DatabaseSync } from 'node:sqlite';
 
 // Cleared on "erase all"; children first for FK safety. The `products` catalog
 // (wire/rod reference data) is intentionally NOT cleared.
-const TABLES = ['payments', 'invoices', 'liftings', 'price_fixations', 'supplier_terms',
-  'bookings', 'fx_rates', 'lme_prices', 'csp_prices', 'parties'];
+const TABLES = ['allocations', 'requirements', 'payments', 'invoices', 'liftings', 'price_fixations',
+  'supplier_terms', 'bookings', 'fx_rates', 'lme_prices', 'csp_prices', 'parties'];
 
 /** Remove every row (children first for FK safety) and reset id counters. */
 export function clearAllData(db: DatabaseSync) {
@@ -306,4 +306,48 @@ export function seedDemo(db: DatabaseSync) {
          handling_inr_mt = IFNULL((SELECT handling_inr_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0)
        WHERE kind = 'PURCHASE'`).run(defProd.id);
   }
+
+  // ---------- Phase 2 demo: requirements split across suppliers ----------
+  const ym = TODAY.slice(0, 7).replace('-', '');
+  const prodBy = (type: string, size: number) =>
+    (db.prepare(`SELECT id FROM products WHERE type=? AND size_mm=?`).get(type, size) as { id: number }).id;
+  const termOf = (sid: number, pid: number) =>
+    (db.prepare(`SELECT premium_usd_mt,factor_pct,handling_inr_mt,transaction_usd_mt FROM supplier_terms WHERE supplier_id=? AND product_id=?`).get(sid, pid) as
+      { premium_usd_mt: number; factor_pct: number; handling_inr_mt: number; transaction_usd_mt: number } | undefined)
+      ?? { premium_usd_mt: 220, factor_pct: 5, handling_inr_mt: 6000, transaction_usd_mt: 10 };
+  const insPB = db.prepare(
+    `INSERT INTO bookings (booking_no,kind,party_id,booking_date,qty_mt,pricing_basis,premium_inr_mt,avg_start,avg_end,
+       lift_by_date,status,linked_booking_id,notes,premium_usd_mt,transaction_usd_mt,factor_pct,handling_inr_mt,product_id)
+     VALUES (?,'PURCHASE',?,?,?,'PRICE_LATER',0,NULL,NULL,NULL,'OPEN',NULL,?,?,?,?,?,?)`);
+  const insReq = db.prepare(
+    `INSERT INTO requirements (req_no,customer_id,product_id,qty_mt,need_by_date,target_sell_inr_kg,status,created_date,notes)
+     VALUES (?,?,?,?,?,?,?,?,?)`);
+  const insAlloc = db.prepare(
+    `INSERT INTO allocations (requirement_id,supplier_id,tier_label,qty_mt,rate_inr_kg,booking_id,status,created_date,notes)
+     VALUES (?,?,?,?,?,?,?,?,?)`);
+  const rateOf = (t: { premium_usd_mt: number; factor_pct: number; handling_inr_mt: number; transaction_usd_mt: number }) =>
+    Math.round(((lme + t.premium_usd_mt + t.transaction_usd_mt) * (1 + t.factor_pct / 100) * (rbi / 1000) + t.handling_inr_mt / 1000) * 100) / 100;
+  const makeAlloc = (reqId: number, sid: number, pid: number, qty: number, tier: string, booked: boolean) => {
+    const t = termOf(sid, pid);
+    const rate = rateOf(t);
+    const no = `PB-${String(++pbSeq).padStart(3, '0')}`;
+    const bid = Number(insPB.run(no, sid, TODAY, qty, 'From requirement', t.premium_usd_mt, t.transaction_usd_mt, t.factor_pct, t.handling_inr_mt, pid).lastInsertRowid);
+    if (booked) insFix.run(bid, TODAY, qty, Math.round(rate * 1000), 'CSP', null);
+    insAlloc.run(reqId, sid, tier, qty, rate, bid, booked ? 'RECEIVED' : 'PI_RECEIVED', TODAY, null);
+  };
+  const sellTarget = () => Math.round((rateOf(termOf(supplierIds[0], prodBy('WIRE', 1.6))) + 9) * 10) / 10;
+
+  const w160 = prodBy('WIRE', 1.6), rod8 = prodBy('ROD', 8), w575 = prodBy('WIRE', 5.75);
+  // A — filled 25 MT, split 5 / 10 / 10 (last leg still provisional)
+  const ra = Number(insReq.run(`REQ-${ym}-001`, customerIds[1], w160, 25, addDays(TODAY, 10), sellTarget(), 'OPEN', TODAY, null).lastInsertRowid);
+  makeAlloc(ra, supplierIds[0], w160, 5, 'L1', true);
+  makeAlloc(ra, supplierIds[1], w160, 10, 'L2', true);
+  makeAlloc(ra, supplierIds[2], w160, 10, 'L3', false);
+  db.prepare(`UPDATE requirements SET status='FILLED' WHERE id=?`).run(ra);
+  // B — partly sourced 12 MT rod, 5 taken
+  const rb = Number(insReq.run(`REQ-${ym}-002`, customerIds[3], rod8, 12, addDays(TODAY, 14), Math.round((rateOf(termOf(supplierIds[4], rod8)) + 8) * 10) / 10, 'OPEN', TODAY, null).lastInsertRowid);
+  makeAlloc(rb, supplierIds[4], rod8, 5, 'L1', false);
+  db.prepare(`UPDATE requirements SET status='PARTIAL' WHERE id=?`).run(rb);
+  // C — open 8 MT, no legs yet
+  insReq.run(`REQ-${ym}-003`, customerIds[0], w575, 8, addDays(TODAY, 20), sellTarget(), 'OPEN', TODAY, null);
 }

@@ -15,6 +15,10 @@ const LINKS = [
     icon: <svg {...S}><path d="M4 20V9l8-5 8 5v11" /><path d="M9 20v-6h6v6" /><path d="M12 4v3" /></svg>,
   },
   {
+    href: '/requirements', label: 'Requirements',
+    icon: <svg {...S}><path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4" /><path d="M8 12h8" /></svg>,
+  },
+  {
     href: '/bookings', label: 'Bookings',
     icon: <svg {...S}><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h6" /></svg>,
   },

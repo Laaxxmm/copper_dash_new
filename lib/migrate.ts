@@ -37,6 +37,30 @@ const PHASE1_TABLES = [
      basis TEXT NOT NULL CHECK (basis IN ('RBI_TT','SBI_TT')),
      usd_inr REAL NOT NULL,
      PRIMARY KEY (rate_date, basis))`,
+  // Phase 2 — a monthly requirement, split into supplier allocations.
+  `CREATE TABLE IF NOT EXISTS requirements (
+     id INTEGER PRIMARY KEY,
+     req_no TEXT NOT NULL UNIQUE,
+     customer_id INTEGER REFERENCES parties(id),
+     product_id INTEGER NOT NULL REFERENCES products(id),
+     qty_mt REAL NOT NULL,
+     need_by_date TEXT,
+     target_sell_inr_kg REAL,
+     status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','PARTIAL','FILLED','CANCELLED')),
+     created_date TEXT NOT NULL,
+     notes TEXT)`,
+  `CREATE TABLE IF NOT EXISTS allocations (
+     id INTEGER PRIMARY KEY,
+     requirement_id INTEGER NOT NULL REFERENCES requirements(id),
+     supplier_id INTEGER NOT NULL REFERENCES parties(id),
+     tier_label TEXT,
+     qty_mt REAL NOT NULL,
+     rate_inr_kg REAL,
+     booking_id INTEGER REFERENCES bookings(id),
+     status TEXT NOT NULL DEFAULT 'ENQUIRY'
+       CHECK (status IN ('ENQUIRY','PI_RECEIVED','PO_SENT','PAID','DISPATCHED','RECEIVED','CANCELLED')),
+     created_date TEXT NOT NULL,
+     notes TEXT)`,
 ];
 
 export function migrate(db: DatabaseSync) {
