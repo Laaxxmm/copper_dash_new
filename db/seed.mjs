@@ -5,6 +5,7 @@ import { readFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { seedDemo } from '../lib/seed.ts';
+import { migrate } from '../lib/migrate.ts';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dbDir = join(root, 'data');
@@ -23,6 +24,7 @@ for (const raw of schemaSql.split(';')) {
   else db.prepare(stmt).run();
 }
 
+migrate(db);   // Phase 1 tables/columns + wire-rod catalog
 seedDemo(db);
 
 const counts = {};

@@ -46,6 +46,28 @@ export async function liveMarket(): Promise<LiveMarket | null> {
   };
 }
 
+export type LmeQuote = { usd_mt: number; source: 'westmetall'; asOf: string };
+
+/** Live LME copper cash settlement (USD/MT) from westmetall's market-data page.
+ *  Best-effort + graceful: returns null on any failure, so callers fall back to
+ *  the last saved LME. A convenience feed, never an unattended source of truth. */
+export async function westmetallLme(): Promise<LmeQuote | null> {
+  try {
+    const r = await fetch('https://www.westmetall.com/en/markdaten.php', { headers: FEED_HEADERS, next: { revalidate: 3600 } });
+    if (!r.ok) return null;
+    const text = (await r.text()).replace(/<[^>]+>/g, ' ');
+    // The first "Copper <cash> <3-month>" row is LME Grade A. Range-check guards
+    // against matching the smaller WM-Notiz / Wieland rows.
+    for (const m of text.matchAll(/Copper\s+([\d.,]+)\s+[\d.,]+/g)) {
+      const v = parseFloat(m[1].replace(/,/g, ''));
+      if (v >= 3000 && v <= 40000) return { usd_mt: Math.round(v * 100) / 100, source: 'westmetall', asOf: new Date().toISOString() };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export type NewsItem = { title: string; link: string; source: string; pubDate: string };
 
 function decodeEntities(s: string): string {

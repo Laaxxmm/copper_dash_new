@@ -3,13 +3,15 @@ import { PageHead, Tile } from '@/components/ui';
 import PriceChart from '@/components/charts/PriceChart';
 import AutoRefresh from '@/components/AutoRefresh';
 import { alerts, bookingsSummary, cspSeries, moneySummary, truckSummary, unpricedExposure } from '@/lib/queries';
-import { copperNews, liveMarket, timeAgo } from '@/lib/market';
-import { inr, mt, perKg } from '@/lib/format';
+import { copperNews, timeAgo, westmetallLme } from '@/lib/market';
+import { lmeStrip } from '@/lib/pricing';
+import { inr, mt } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 export default async function TodayPage() {
-  const [market, headlines] = await Promise.all([liveMarket(), copperNews(3)]);
+  const [liveLme, headlines] = await Promise.all([westmetallLme(), copperNews(3)]);
+  const strip = lmeStrip(liveLme?.usd_mt);
   const money = moneySummary();
   const bookingSummary = bookingsSummary();
   const truckSummaryData = truckSummary();
@@ -28,23 +30,23 @@ export default async function TodayPage() {
 
       <Link href="/news" className="market-strip card">
         <span className="ms-item">
-          <span className="ms-label">World copper · live</span>
+          <span className="ms-label">LME copper · cash {strip?.live ? '· live' : ''}</span>
           <span className="ms-value">
-            {market ? `$${market.copperUsdLb.toFixed(2)}/lb` : 'feed offline'}
-            {market?.copperChangePct != null && (
-              <em className={market.copperChangePct >= 0 ? 'pos' : 'neg'}>
-                {' '}{market.copperChangePct >= 0 ? '▲' : '▼'}{Math.abs(market.copperChangePct).toFixed(1)}%
+            {strip ? `$${Math.round(strip.usd_mt).toLocaleString('en-US')}/MT` : 'no LME yet'}
+            {strip?.changePct != null && (
+              <em className={strip.changePct >= 0 ? 'pos' : 'neg'}>
+                {' '}{strip.changePct >= 0 ? '▲' : '▼'}{Math.abs(strip.changePct).toFixed(1)}%
               </em>
             )}
           </span>
         </span>
         <span className="ms-item">
           <span className="ms-label">In rupees (indication)</span>
-          <span className="ms-value">{market ? perKg(market.indicativeInrMt) : '—'}</span>
+          <span className="ms-value">{strip ? `₹${strip.inrPerKg.toFixed(1)}/kg` : '—'}</span>
         </span>
         <span className="ms-item">
-          <span className="ms-label">Dollar</span>
-          <span className="ms-value">{market ? `₹${market.usdInr.toFixed(2)}` : '—'}</span>
+          <span className="ms-label">Dollar · RBI TT</span>
+          <span className="ms-value">{strip ? `₹${strip.fx.toFixed(2)}` : '—'}</span>
         </span>
         <span className="ms-news">
           <span className="ms-label">Latest news</span>

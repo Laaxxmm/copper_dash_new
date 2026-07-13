@@ -2,6 +2,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { seedDemo } from './seed';
+import { migrate } from './migrate';
+
+export { migrate };
 
 // The handle is cached on globalThis so Next.js dev hot-reloads reuse one
 // connection instead of leaking a new file handle per reload.
@@ -35,11 +38,10 @@ export function getDb(): DatabaseSync {
     // First boot on a fresh volume: create the schema and load demo data so the
     // app opens with something to look at. The Settings page can erase it to
     // start clean. Set SEED_DEMO=off to boot empty instead.
-    if (isNew) {
-      applySchema(db);
-      if (process.env.SEED_DEMO !== 'off') {
-        try { seedDemo(db); } catch (e) { console.error('Demo seed failed:', e); }
-      }
+    if (isNew) applySchema(db);
+    migrate(db); // idempotent — brings existing databases up to the current shape
+    if (isNew && process.env.SEED_DEMO !== 'off') {
+      try { seedDemo(db); } catch (e) { console.error('Demo seed failed:', e); }
     }
     g.__copperDb = db;
   }

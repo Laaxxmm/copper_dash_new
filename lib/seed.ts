@@ -3,7 +3,10 @@
 // empties every table. Both operate on the passed connection only.
 import type { DatabaseSync } from 'node:sqlite';
 
-const TABLES = ['payments', 'invoices', 'liftings', 'price_fixations', 'bookings', 'csp_prices', 'parties'];
+// Cleared on "erase all"; children first for FK safety. The `products` catalog
+// (wire/rod reference data) is intentionally NOT cleared.
+const TABLES = ['payments', 'invoices', 'liftings', 'price_fixations', 'supplier_terms',
+  'bookings', 'fx_rates', 'lme_prices', 'csp_prices', 'parties'];
 
 /** Remove every row (children first for FK safety) and reset id counters. */
 export function clearAllData(db: DatabaseSync) {
@@ -64,6 +67,45 @@ export function seedDemo(db: DatabaseSync) {
   const creditDaysById: Record<number, number> = {};
   suppliers.forEach((s, i) => (creditDaysById[supplierIds[i]] = s[5]));
   customers.forEach((c, i) => (creditDaysById[customerIds[i]] = c[5]));
+
+  // ---------- Phase 1: exchange basis, supplier terms, LME + FX series ----------
+  // [premium USD/MT, factor %, handling INR/MT, transaction USD/MT, delivery days, credit days, TT basis]
+  const supTerms: [number, number, number, number, number, number, string][] = [
+    [180, 3.75, 6200, 10, 4, 0, 'RBI_TT'],   // Hindalco
+    [200, 3.75, 6100, 10, 3, 0, 'RBI_TT'],   // Vedanta
+    [210, 5.5, 5900, 10, 5, 7, 'SBI_TT'],    // Kutch
+    [260, 5.5, 6000, 10, 6, 15, 'SBI_TT'],   // Mehta
+    [150, 5.5, 6100, 10, 3, 10, 'RBI_TT'],   // Shree Balaji
+  ];
+  const upBasis = db.prepare(`UPDATE parties SET exchange_basis = ? WHERE id = ?`);
+  supplierIds.forEach((id, i) => upBasis.run(supTerms[i][6], id));
+  customerIds.forEach((id, i) => upBasis.run(i % 2 ? 'SBI_TT' : 'RBI_TT', id));
+
+  const prodRows = db.prepare(`SELECT id, type, size_mm FROM products`).all() as { id: number; type: string; size_mm: number }[];
+  const insTerm = db.prepare(
+    `INSERT OR IGNORE INTO supplier_terms
+       (supplier_id, product_id, premium_usd_mt, transaction_usd_mt, factor_pct, handling_inr_mt, delivery_days, credit_days)
+     VALUES (?,?,?,?,?,?,?,?)`);
+  supplierIds.forEach((sid, i) => {
+    const [prem, fac, hand, txn, del, cr] = supTerms[i];
+    for (const p of prodRows) {
+      const adj = p.type === 'WIRE' ? Math.round((6 - p.size_mm) * 18) : -25; // finer wire = higher premium
+      insTerm.run(sid, p.id, (prem as number) + adj, txn, fac, hand, del, cr);
+    }
+  });
+
+  const insLme = db.prepare(`INSERT OR IGNORE INTO lme_prices (price_date, usd_mt, source) VALUES (?,?, 'manual')`);
+  const insFx = db.prepare(`INSERT OR IGNORE INTO fx_rates (rate_date, basis, usd_inr) VALUES (?,?,?)`);
+  let lme = 13250, rbi = 89.1; // near current LME copper levels (~$13,400/MT)
+  for (let day = addDays(TODAY, -75); day <= TODAY; day = addDays(day, 1)) {
+    const dow = new Date(day + 'T00:00:00Z').getUTCDay();
+    if (dow === 0 || dow === 6) continue; // LME trades weekdays only
+    lme = Math.max(12500, lme + 4 + between(-70, 90));
+    insLme.run(day, Math.round(lme));
+    rbi = Math.max(85, rbi + between(-0.08, 0.09));
+    insFx.run(day, 'RBI_TT', Math.round(rbi * 100) / 100);
+    insFx.run(day, 'SBI_TT', Math.round((rbi - 0.14) * 100) / 100);
+  }
 
   // ---------- daily CSP price series (INR/MT) ----------
   const insCsp = db.prepare('INSERT INTO csp_prices (price_date, price_inr_mt) VALUES (?,?)');
@@ -250,4 +292,18 @@ export function seedDemo(db: DatabaseSync) {
   });
 
   db.prepare(`UPDATE bookings SET status='CANCELLED', notes='Customer backed out, qty not lifted' WHERE booking_no='SB-004'`).run();
+
+  // Phase 1: attach a product + the USD pricing components to purchase bookings
+  // (default grade 1.60 mm wire), pulled from each supplier's terms.
+  const defProd = db.prepare(`SELECT id FROM products WHERE type='WIRE' AND size_mm=1.6`).get() as { id: number } | undefined;
+  if (defProd) {
+    db.prepare(
+      `UPDATE bookings SET
+         product_id = ?1,
+         premium_usd_mt = IFNULL((SELECT premium_usd_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0),
+         transaction_usd_mt = IFNULL((SELECT transaction_usd_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0),
+         factor_pct = IFNULL((SELECT factor_pct FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0),
+         handling_inr_mt = IFNULL((SELECT handling_inr_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0)
+       WHERE kind = 'PURCHASE'`).run(defProd.id);
+  }
 }
