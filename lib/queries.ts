@@ -431,17 +431,6 @@ export function alerts(): Alert[] {
       href: '/money?kind=SALE&unpaid=1',
     });
   }
-  for (const r of all<{ truck_no: string; party: string; kind: string; days: number }>(
-    `SELECT l.truck_no, p.name party, b.kind, CAST(julianday(date('now')) - julianday(l.arrived_date) AS INTEGER) days
-     FROM liftings l JOIN bookings b ON b.id = l.booking_id JOIN parties p ON p.id = b.party_id
-     WHERE l.status = 'ARRIVED' ORDER BY days DESC`)) {
-    out.push({
-      severity: r.days >= 2 ? 'critical' : 'warning',
-      title: `Truck ${r.truck_no} waiting to unload${r.days > 0 ? ` for ${r.days} day${r.days > 1 ? 's' : ''}` : ''}`,
-      detail: r.kind === 'PURCHASE' ? `Material coming from ${r.party}` : `Material going to ${r.party}`,
-      href: '/trucks?status=ARRIVED',
-    });
-  }
   for (const r of all<{ booking_no: string; party: string; qty: number }>(
     `SELECT b.booking_no, p.name party, ROUND(b.qty_mt - IFNULL(f.q, 0), 1) qty
      FROM bookings b JOIN parties p ON p.id = b.party_id

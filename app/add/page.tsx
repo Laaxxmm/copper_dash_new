@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { all, get } from '@/lib/db';
-import { addBooking, addFixation, addLifting, addParty, addPayment, saveCsp, updateTruck } from '@/lib/actions';
+import { addBooking, addFixation, addParty, addPayment, saveCsp } from '@/lib/actions';
 import { BASIS_LABEL, inr, today } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -9,8 +9,6 @@ export const dynamic = 'force-dynamic';
 const TABS = [
   { key: 'booking', label: 'New booking' },
   { key: 'price-fix', label: 'Fix a price' },
-  { key: 'truck', label: 'Truck dispatched' },
-  { key: 'truck-update', label: 'Truck arrived / unloaded' },
   { key: 'payment', label: 'Payment' },
   { key: 'party', label: 'New customer / supplier' },
   { key: 'price', label: "Today's copper price" },
@@ -32,11 +30,6 @@ export default async function AddPage({ searchParams }: { searchParams: Promise<
     `SELECT b.id, b.booking_no || ' · ' || p.name label
      FROM bookings b JOIN parties p ON p.id=b.party_id
      WHERE b.status='OPEN' AND b.kind='PURCHASE' ORDER BY b.booking_date DESC`);
-  const movingTrucks = all<{ id: number; label: string }>(
-    `SELECT l.id, l.truck_no || ' · ' || p.name || ' · ' || l.qty_mt || ' MT (' ||
-            CASE l.status WHEN 'IN_TRANSIT' THEN 'on the road' ELSE 'arrived' END || ')' label
-     FROM liftings l JOIN bookings b ON b.id=l.booking_id JOIN parties p ON p.id=b.party_id
-     WHERE l.status != 'UNLOADED' ORDER BY l.dispatch_date DESC`);
   const pendingBills = all<{ id: number; label: string }>(
     `SELECT i.id, i.invoice_no || ' · ' || p.name || ' · ' ||
             CASE i.kind WHEN 'SALE' THEN 'they owe ' ELSE 'we owe ' END ||
@@ -139,78 +132,6 @@ export default async function AddPage({ searchParams }: { searchParams: Promise<
             </label>
           </div>
           <button className="btn" type="submit">Save price</button>
-        </form>
-      )}
-
-      {what === 'truck' && (
-        <form action={addLifting} className="card card-pad form">
-          <div className="card-title">Truck dispatched — material moving against a booking (the bill is created automatically)</div>
-          <div className="form-grid">
-            <label className="wide">Booking
-              <select name="booking_id" required defaultValue="">
-                <option value="" disabled>Choose…</option>
-                {openBookings.filter((b) => b.unlifted > 0.05).map((b) => (
-                  <option key={b.id} value={b.id}>{b.label} — {b.unlifted} MT still to move</option>
-                ))}
-              </select>
-            </label>
-            <label>Quantity on this truck (MT)
-              <input name="qty" type="number" step="0.1" min="0.1" required />
-            </label>
-            <label>Truck number
-              <input name="truck_no" type="text" required placeholder="GJ-12-AB-3456" />
-            </label>
-            <label>Transporter
-              <input name="transporter" type="text" placeholder="e.g. VRL Logistics" />
-            </label>
-            <label>Dispatch date
-              <input name="date" type="date" defaultValue={today()} required />
-            </label>
-            <label>E-way bill number
-              <input name="eway" type="text" />
-            </label>
-            <label>Challan number
-              <input name="challan" type="text" />
-            </label>
-            <label>Weighbridge weight (kg)
-              <input name="weight" type="number" step="0.1" placeholder="auto: quantity × 1000" />
-            </label>
-            <label>Bill number (leave blank to auto-number)
-              <input name="bill_no" type="text" placeholder="supplier's bill no, if buying" />
-            </label>
-          </div>
-          <button className="btn" type="submit">Save dispatch + bill</button>
-        </form>
-      )}
-
-      {what === 'truck-update' && (
-        <form action={updateTruck} className="card card-pad form">
-          <div className="card-title">Truck arrived / unloaded — close the loop on a moving truck</div>
-          <div className="form-grid">
-            <label className="wide">Truck
-              <select name="lifting_id" required defaultValue="">
-                <option value="" disabled>Choose…</option>
-                {movingTrucks.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
-            </label>
-            <label>What happened?
-              <select name="event" required defaultValue="">
-                <option value="" disabled>Choose…</option>
-                <option value="ARRIVED">Arrived (not yet unloaded)</option>
-                <option value="UNLOADED">Unloaded</option>
-              </select>
-            </label>
-            <label>Date
-              <input name="date" type="date" defaultValue={today()} required />
-            </label>
-            <label>Weight received (kg) — for unloading
-              <input name="received_kg" type="number" step="0.1" placeholder="from your weighbridge slip" />
-            </label>
-            <label>Unloaded by
-              <input name="unloaded_by" type="text" placeholder="who supervised" />
-            </label>
-          </div>
-          <button className="btn" type="submit">Update truck</button>
         </form>
       )}
 

@@ -2,9 +2,10 @@ import { PageHead } from '@/components/ui';
 import { CopperIngots } from '@/components/CopperArt';
 import EraseForm from '@/components/EraseForm';
 import { logout } from '@/lib/auth-actions';
-import { reloadDemoData } from '@/lib/settings-actions';
+import { reloadDemoData, saveModules } from '@/lib/settings-actions';
 import { ADMIN_USER } from '@/lib/auth';
 import { all } from '@/lib/db';
+import { OPTIONAL_MODULES, enabledModules } from '@/lib/modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     ]),
   );
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const enabled = enabledModules();
 
   return (
     <>
@@ -23,7 +25,25 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       {done === 'erased' ? <div className="notice good">All data erased. The register is now empty and ready for your real entries.</div> : null}
       {done === 'demo' ? <div className="notice good">Demo data reloaded.</div> : null}
+      {done === 'modules' ? <div className="notice good">Menu updated.</div> : null}
       {err === 'confirm' ? <div className="notice bad">Type ERASE exactly to confirm — nothing was deleted.</div> : null}
+
+      <form action={saveModules} className="card card-pad section-gap">
+        <div className="card-title">Menu — show only what you use</div>
+        <p style={{ fontSize: 14, color: 'var(--ink-2)', marginBottom: 12 }}>
+          The core flow (Today, Where to buy, Requirements, People, Market &amp; news) is always shown. Turn these extra
+          modules on only when you need them.
+        </p>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
+          {OPTIONAL_MODULES.map((m) => (
+            <label key={m.key} style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600, fontSize: 14.5 }}>
+              <input type="checkbox" name={`m_${m.key}`} value="on" defaultChecked={enabled.includes(m.key)} style={{ width: 18, height: 18 }} />
+              {m.label}
+            </label>
+          ))}
+        </div>
+        <button type="submit" className="btn btn-sm">Save menu</button>
+      </form>
 
       <div className="grid two-col section-gap" style={{ alignItems: 'start' }}>
         <div className="grid" style={{ gap: 14 }}>

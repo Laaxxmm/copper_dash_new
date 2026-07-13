@@ -167,10 +167,9 @@ describe('parties', () => {
 });
 
 describe('alerts', () => {
-  it('flags late payers, stuck trucks and unpriced lifted material', () => {
+  it('flags late payers and unpriced lifted material', () => {
     const titles = alerts().map((a) => a.title);
     expect(titles.some((t) => t.includes('Customer X payment late by 65 days'))).toBe(true);
-    expect(titles.some((t) => t.includes('TT-05-EE-5555 waiting to unload'))).toBe(true);
     expect(titles.some((t) => t.includes('SB-002: 3 MT lifted but price not fixed'))).toBe(true);
   });
 });

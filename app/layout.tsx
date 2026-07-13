@@ -3,6 +3,7 @@ import { Spectral, Hanken_Grotesk, Spline_Sans_Mono } from 'next/font/google';
 import './globals.css';
 import Nav from '@/components/Nav';
 import { logout } from '@/lib/auth-actions';
+import { enabledModules } from '@/lib/modules';
 
 const display = Spectral({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-display' });
 const body = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-body' });
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <aside className="sidebar">
             <div className="brand"><span className="cu">Copper</span>Book</div>
             <div className="brand-sub">Trade Register</div>
-            <Nav />
+            <Nav enabled={enabledModules()} />
             <div className="nav-foot">
               <form action={logout}>
                 <button type="submit" className="nav-signout">Sign out</button>

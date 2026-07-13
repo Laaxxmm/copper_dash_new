@@ -61,6 +61,7 @@ const PHASE1_TABLES = [
        CHECK (status IN ('ENQUIRY','PI_RECEIVED','PO_SENT','PAID','DISPATCHED','RECEIVED','CANCELLED')),
      created_date TEXT NOT NULL,
      notes TEXT)`,
+  `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`,
 ];
 
 export function migrate(db: DatabaseSync) {
