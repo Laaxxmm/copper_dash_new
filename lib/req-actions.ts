@@ -3,9 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { get, run } from './db';
-import { ratePerKg } from './formula';
-import { fxRate, latestLme, supplierBoard } from './pricing';
+import { supplierBoard } from './pricing';
 import { today } from './format';
+import { bookEnquiry, bookLeg, cancelAlloc, engineRate, recompute, supplierTerms } from './req-core';
 
 function fail(where: string, msg: string): never {
   redirect(`${where}?err=${encodeURIComponent(msg)}`);
@@ -18,21 +18,6 @@ function reqNo(): string {
   const ym = today().slice(0, 7).replace('-', '');
   const n = get<{ c: number }>(`SELECT COUNT(*) c FROM requirements WHERE req_no LIKE ?`, `REQ-${ym}-%`)!.c;
   return `REQ-${ym}-${String(n + 1).padStart(3, '0')}`;
-}
-function nextPb(): string {
-  const n = get<{ c: number }>(`SELECT COUNT(*) c FROM bookings WHERE booking_no LIKE 'PB-%'`)!.c;
-  return `PB-${String(n + 1).padStart(3, '0')}`;
-}
-
-/** Recompute OPEN/PARTIAL/FILLED from live allocations (leaves a CANCELLED requirement alone). */
-function recompute(reqId: number) {
-  const r = get<{ qty_mt: number; status: string; sourced: number }>(
-    `SELECT qty_mt, status,
-            IFNULL((SELECT SUM(qty_mt) FROM allocations WHERE requirement_id = ? AND status != 'CANCELLED'), 0) sourced
-     FROM requirements WHERE id = ?`, reqId, reqId);
-  if (!r || r.status === 'CANCELLED') return;
-  const status = r.sourced >= r.qty_mt - 0.001 ? 'FILLED' : r.sourced > 0 ? 'PARTIAL' : 'OPEN';
-  run(`UPDATE requirements SET status = ? WHERE id = ?`, status, reqId);
 }
 
 export async function addRequirement(fd: FormData) {
@@ -54,27 +39,6 @@ export async function addRequirement(fd: FormData) {
     reqNo(), customerId, productId, qty, needBy, targetSell, today(), notes).lastInsertRowid);
   refresh();
   redirect(`/requirements/${id}`);
-}
-
-type Terms = { premium_usd_mt: number; transaction_usd_mt: number; factor_pct: number; handling_inr_mt: number };
-const supplierTerms = (supplierId: number, productId: number): Terms =>
-  get<Terms>(`SELECT premium_usd_mt, transaction_usd_mt, factor_pct, handling_inr_mt FROM supplier_terms WHERE supplier_id = ? AND product_id = ?`,
-    supplierId, productId) ?? { premium_usd_mt: 0, transaction_usd_mt: 0, factor_pct: 0, handling_inr_mt: 0 };
-
-const engineRate = (supplierId: number, st: Terms) => {
-  const basis = get<{ b: string }>(`SELECT exchange_basis b FROM parties WHERE id = ?`, supplierId)?.b ?? 'RBI_TT';
-  return ratePerKg({ lme_usd_mt: latestLme()?.usd_mt ?? 0, exchange_rate: fxRate(basis), ...st });
-};
-
-/** Create the provisional (price-later) purchase booking for a leg. */
-function bookLeg(supplierId: number, productId: number, qty: number, note: string): number {
-  const st = supplierTerms(supplierId, productId);
-  return Number(run(
-    `INSERT INTO bookings (booking_no, kind, party_id, booking_date, qty_mt, pricing_basis, premium_inr_mt,
-       avg_start, avg_end, lift_by_date, status, linked_booking_id, notes,
-       premium_usd_mt, transaction_usd_mt, factor_pct, handling_inr_mt, product_id)
-     VALUES (?, 'PURCHASE', ?, ?, ?, 'PRICE_LATER', 0, NULL, NULL, NULL, 'OPEN', NULL, ?, ?, ?, ?, ?, ?)`,
-    nextPb(), supplierId, today(), qty, note, st.premium_usd_mt, st.transaction_usd_mt, st.factor_pct, st.handling_inr_mt, productId).lastInsertRowid);
 }
 
 /** Validate a leg against its requirement; returns the requirement + rate + tier or redirects on error. */
@@ -113,16 +77,9 @@ export async function sendEnquiry(fd: FormData) {
 export async function confirmEnquiry(fd: FormData) {
   const allocId = num(fd, 'allocation_id');
   const reqId = num(fd, 'requirement_id');
-  const back = `/requirements/${reqId}`;
-  const a = get<{ supplier_id: number; qty_mt: number; status: string; booking_id: number | null }>(
-    `SELECT supplier_id, qty_mt, status, booking_id FROM allocations WHERE id = ?`, allocId);
-  if (!a || a.status !== 'ENQUIRY' || a.booking_id) fail(back, 'This leg is not an open enquiry.');
-  const productId = get<{ p: number }>(`SELECT product_id p FROM requirements WHERE id = ?`, reqId)!.p;
-  const bookingId = bookLeg(a.supplier_id, productId, a.qty_mt, `From requirement ${reqId}`);
-  run(`UPDATE allocations SET booking_id = ?, status = 'PI_RECEIVED' WHERE id = ?`, bookingId, allocId);
-  recompute(reqId);
+  if (bookEnquiry(allocId) == null) fail(`/requirements/${reqId}`, 'This leg is not an open enquiry.');
   refresh();
-  redirect(back);
+  redirect(`/requirements/${reqId}`);
 }
 
 /** Directly commit a leg (skip the enquiry step) — used by tests/quick entry. */
@@ -139,13 +96,8 @@ export async function addAllocation(fd: FormData) {
 }
 
 export async function cancelAllocation(fd: FormData) {
-  const allocId = num(fd, 'allocation_id');
   const reqId = num(fd, 'requirement_id');
-  const a = get<{ booking_id: number | null }>(`SELECT booking_id FROM allocations WHERE id = ?`, allocId);
-  if (!a) fail(`/requirements/${reqId}`, 'Allocation not found.');
-  run(`UPDATE allocations SET status = 'CANCELLED' WHERE id = ?`, allocId);
-  if (a.booking_id) run(`UPDATE bookings SET status = 'CANCELLED', notes = 'Allocation cancelled' WHERE id = ?`, a.booking_id);
-  recompute(reqId);
+  if (cancelAlloc(num(fd, 'allocation_id')) == null) fail(`/requirements/${reqId}`, 'Allocation not found.');
   refresh();
   redirect(`/requirements/${reqId}`);
 }

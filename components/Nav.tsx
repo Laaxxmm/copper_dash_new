@@ -19,6 +19,10 @@ const LINKS = [
     icon: <svg {...S}><path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4" /><path d="M8 12h8" /></svg>,
   },
   {
+    href: '/inbox', label: 'Inbox',
+    icon: <svg {...S}><path d="M3 12h5l2 3h4l2-3h5" /><path d="M4 5h16v14H4z" /></svg>,
+  },
+  {
     href: '/bookings', label: 'Bookings', mod: 'bookings',
     icon: <svg {...S}><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h6" /></svg>,
   },

@@ -62,6 +62,17 @@ const PHASE1_TABLES = [
      created_date TEXT NOT NULL,
      notes TEXT)`,
   `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`,
+  // Phase 4 — inbound documents parsed from email, awaiting human confirmation.
+  `CREATE TABLE IF NOT EXISTS email_captures (
+     id INTEGER PRIMARY KEY,
+     received_at TEXT NOT NULL,
+     doc_type TEXT CHECK (doc_type IN ('PI','PO','INVOICE','CANCEL','UNKNOWN')),
+     reference_no TEXT,
+     matched_allocation_id INTEGER REFERENCES allocations(id),
+     matched_requirement_id INTEGER REFERENCES requirements(id),
+     extracted_json TEXT,
+     status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','MISMATCH','CONFIRMED','REJECTED')),
+     raw_ref TEXT)`,
 ];
 
 export function migrate(db: DatabaseSync) {
