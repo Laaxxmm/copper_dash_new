@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { PageHead, Tile } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
-import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard, alerts, basisAlerts } from '@/lib/queries';
+import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard, alerts, basisAlerts, profitability, customerProfitability } from '@/lib/queries';
 import { copperNews, timeAgo, liveLme } from '@/lib/market';
 import { lmeStrip } from '@/lib/pricing';
 import { mt, inr, monthLabel, today } from '@/lib/format';
@@ -25,6 +25,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const totLifted = plan.reduce((s, r) => s + r.lifted_mt, 0);
   const order = { critical: 0, warning: 1, info: 2 };
   const attention = [...basisAlerts(), ...alerts()].sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 8);
+  const pnl = profitability(month);
+  const topCustomers = customerProfitability(month).slice(0, 5);
 
   return (
     <>
@@ -80,6 +82,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           note={<>of <b>{mt(Math.round(totTarget * 10) / 10)}</b> planned · {pct(totLifted, totTarget)}% achieved</>}
         />
         <Tile
+          label="Net profit"
+          value={inr(pnl.net)}
+          tone={pnl.net < 0 ? 'bad' : 'good'}
+          note={<>gross <b>{inr(pnl.grossMargin)}</b> − overheads <b>{inr(pnl.overheads)}</b></>}
+        />
+        <Tile
           label="Quantity without a price"
           value={mt(Math.round(exposureQty * 10) / 10)}
           tone={exposureQty > 5 ? 'warn' : undefined}
@@ -121,6 +129,31 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
         )}
       </div>
+
+      {topCustomers.length > 0 && (
+        <div className="section-gap">
+          <div className="section-title">Profit by customer — {monthLabel(month)}</div>
+          <div className="card">
+            <div className="table-wrap">
+              <table className="data compact">
+                <thead><tr><th>Customer</th><th className="num">Revenue</th><th className="num">Margin</th><th className="num">Overhead</th><th className="num">Net</th></tr></thead>
+                <tbody>
+                  {topCustomers.map((c) => (
+                    <tr key={c.customer_id}>
+                      <td><Link href={`/sales/customers/${c.customer_id}`} className="cell-main" style={{ color: 'var(--copper-text)' }}>{c.customer}</Link></td>
+                      <td className="num">{inr(c.revenue)}</td>
+                      <td className="num">{inr(c.margin)}</td>
+                      <td className="num muted">−{inr(c.overhead_share)}</td>
+                      <td className="num" style={{ color: c.net < 0 ? 'var(--bad)' : 'var(--good)', fontWeight: 700 }}>{inr(c.net)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="chart-note" style={{ padding: '0 16px 14px' }}>Overheads shared by revenue. Full detail on <Link href="/finance" style={{ fontWeight: 700 }}>Finance →</Link></p>
+          </div>
+        </div>
+      )}
 
       {attention.length > 0 && (
         <div className="section-gap">

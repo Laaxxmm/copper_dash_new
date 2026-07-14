@@ -407,4 +407,23 @@ export function seedDemo(db: DatabaseSync) {
   insSP.run(customerIds[1], '2.5mm drawn wire', prodBy('WIRE', 2.5), tplFine, 18, null, TODAY);
   insSP.run(customerIds[0], '8mm rod (resale)', rod8, tplResale, 0, null, TODAY);
   insSP.run(customerIds[3], '1.6mm winding wire', w160, tplFine, 15, null, TODAY);
+
+  // A few current-month matched deals (both priced, linked) so this month's profit is real
+  // and the basis-mismatch view has fresh data.
+  const curDeal = (supIdx: number, cusIdx: number, qty: number, buyBasis: string, sellBasis: string, sellPremiumOver: number) => {
+    const day = addDays(TODAY, -Math.floor(between(2, 12)));
+    const pb = makeBooking({ kind: 'PURCHASE', partyId: supplierIds[supIdx], day, qty, basis: buyBasis, premium: 3000 });
+    fixPrice(pb, day, qty);
+    const sday = addDays(day, 1) <= TODAY ? addDays(day, 1) : day;
+    const sb = makeBooking({ kind: 'SALE', partyId: customerIds[cusIdx], day: sday, qty, basis: sellBasis, premium: 3000 + sellPremiumOver, linkedId: pb.id });
+    fixPrice(sb, sday, qty);
+  };
+  curDeal(0, 1, 4, 'MONTH_AVG', 'DAY_PRICE', 13000);
+  curDeal(2, 3, 3, 'DAY_PRICE', 'DAY_PRICE', 11000);
+  curDeal(1, 4, 5, 'WEEK_AVG', 'DAY_PRICE', 12000);
+
+  // ---------- Sales demo: monthly overheads (feed net profitability) ----------
+  const insExp = db.prepare(`INSERT INTO expenses (month, category, amount, notes, created_date) VALUES (?,?,?,?,?)`);
+  const overheads: [string, number][] = [['Salary', 60000], ['Rent', 25000], ['Power', 9000], ['Transport', 12000], ['Office', 6000]];
+  for (const [cat, amt] of overheads) insExp.run(curMonth, cat, amt, null, TODAY);
 }

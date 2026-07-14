@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { destroyTestDb, isoDaysAgo, seedFixtures, useTestDb, type Fixtures } from './helpers';
 import { get, run } from '@/lib/db';
 import {
-  alerts, bookings, bookingsSummary, cspToday, customerProfit, dealMargins, dealMarginsBasis, dnplDeadline, invoices, orderList,
+  alerts, bookings, bookingsSummary, cspToday, customerProfit, customerProfitability, dealMargins, dealMarginsBasis, dnplDeadline, invoices, orderList, profitability,
   moneySummary, monthlyTrade, partyLedger, partySummaries, receivableAging,
   supplierScorecard, truckSummary, trucks, typicalSellRate, unpricedExposure, whereToBuy,
 } from '@/lib/queries';
@@ -186,6 +186,35 @@ describe('orderList (orders tracker filters)', () => {
     // newest first
     const dates = rows.map((o) => o.booking_date);
     expect([...dates].sort((a, b) => (a < b ? 1 : -1))).toEqual(dates);
+  });
+});
+
+describe('profitability (finance: net = gross margin − overheads)', () => {
+  it('nets off overheads and shares them across customers by revenue', () => {
+    const sup = Number(run(`INSERT INTO parties (name,type) VALUES ('SupP','SUPPLIER')`).lastInsertRowid);
+    const c1 = Number(run(`INSERT INTO parties (name,type) VALUES ('C1','CUSTOMER')`).lastInsertRowid);
+    const c2 = Number(run(`INSERT INTO parties (name,type) VALUES ('C2','CUSTOMER')`).lastInsertRowid);
+    const mkDeal = (cust: number, qty: number, buy: number, sell: number, no: string) => {
+      const pb = Number(run(`INSERT INTO bookings (booking_no,kind,party_id,booking_date,qty_mt,pricing_basis,premium_inr_mt,status) VALUES (?,?,?,?,?,?,0,'OPEN')`, 'P' + no, 'PURCHASE', sup, '2025-01-10', qty, 'DAY_PRICE').lastInsertRowid);
+      run(`INSERT INTO price_fixations (booking_id,fixation_date,qty_mt,price_inr_mt,reference) VALUES (?,?,?,?,'CSP')`, pb, '2025-01-10', qty, buy);
+      const sb = Number(run(`INSERT INTO bookings (booking_no,kind,party_id,booking_date,qty_mt,pricing_basis,premium_inr_mt,status,linked_booking_id) VALUES (?,?,?,?,?,?,0,'OPEN',?)`, 'S' + no, 'SALE', cust, '2025-01-11', qty, 'DAY_PRICE', pb).lastInsertRowid);
+      run(`INSERT INTO price_fixations (booking_id,fixation_date,qty_mt,price_inr_mt,reference) VALUES (?,?,?,?,'CSP')`, sb, '2025-01-11', qty, sell);
+    };
+    mkDeal(c1, 10, 900000, 910000, 'A'); // margin 10,000/MT × 10 = 100,000
+    mkDeal(c2, 10, 900000, 905000, 'B'); // margin  5,000/MT × 10 =  50,000
+    run(`INSERT INTO expenses (month,category,amount,created_date) VALUES ('2025-01','Rent',30000,'2025-01-01')`);
+
+    const p = profitability('2025-01');
+    expect(p.grossMargin).toBe(150000);
+    expect(p.overheads).toBe(30000);
+    expect(p.net).toBe(120000);
+
+    const pc = customerProfitability('2025-01');
+    const a = pc.find((x) => x.customer === 'C1')!, b = pc.find((x) => x.customer === 'C2')!;
+    expect(a.margin).toBe(100000);
+    expect(b.margin).toBe(50000);
+    expect(Math.abs(a.overhead_share + b.overhead_share - 30000)).toBeLessThanOrEqual(1); // fully allocated
+    expect(a.net).toBe(100000 - a.overhead_share);
   });
 });
 

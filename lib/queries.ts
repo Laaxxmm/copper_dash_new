@@ -552,6 +552,41 @@ export function alerts(): Alert[] {
   return out.sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 8);
 }
 
+// ---------- finance: overheads → true profitability (Sales S6) ----------
+export type Expense = { id: number; month: string; category: string; amount: number; notes: string | null };
+export function expensesList(month?: string): Expense[] {
+  const where = month ? `WHERE month = ?` : '';
+  return all<Expense>(`SELECT id, month, category, amount, notes FROM expenses ${where} ORDER BY month DESC, category`, ...(month ? [month] : []));
+}
+export function overheadsForMonth(month: string): number {
+  return get<{ o: number }>(`SELECT IFNULL(SUM(amount), 0) o FROM expenses WHERE month = ?`, month)!.o;
+}
+
+/** Gross margin (matched deals) − overheads for the month = net. */
+export function profitability(month: string): { grossMargin: number; overheads: number; net: number; deals: number } {
+  const g = get<{ g: number; n: number }>(
+    `SELECT IFNULL(SUM((sf.rate - pf.rate) * ${DEAL_QTY}), 0) g, COUNT(*) n
+     ${MATCHED_DEALS} AND strftime('%Y-%m', s.booking_date) = ?`, month)!;
+  const overheads = Math.round(overheadsForMonth(month));
+  return { grossMargin: Math.round(g.g), overheads, net: Math.round(g.g) - overheads, deals: g.n };
+}
+
+export type CustomerPnl = { customer_id: number; customer: string; revenue: number; margin: number; overhead_share: number; net: number };
+/** Per-customer P&L for the month: gross margin minus an overhead share allocated by revenue. */
+export function customerProfitability(month: string): CustomerPnl[] {
+  const rows = all<{ customer_id: number; customer: string; revenue: number; margin: number }>(
+    `SELECT cp.id customer_id, cp.name customer,
+            SUM(sf.rate * ${DEAL_QTY}) revenue, SUM((sf.rate - pf.rate) * ${DEAL_QTY}) margin
+     ${MATCHED_DEALS} AND strftime('%Y-%m', s.booking_date) = ?
+     GROUP BY cp.id ORDER BY margin DESC`, month);
+  const overheads = overheadsForMonth(month);
+  const totalRev = rows.reduce((s, r) => s + r.revenue, 0) || 1;
+  return rows.map((r) => {
+    const oh = Math.round(overheads * (r.revenue / totalRev));
+    return { customer_id: r.customer_id, customer: r.customer, revenue: Math.round(r.revenue), margin: Math.round(r.margin), overhead_share: oh, net: Math.round(r.margin) - oh };
+  });
+}
+
 // ---------- collections (Sales: money to collect from customers) ----------
 export type CollectionRow = {
   invoice_id: number; customer_id: number; customer: string; invoice_no: string;
