@@ -1,13 +1,15 @@
 import { PageHead } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
-import { copperNews, liveMarket, timeAgo } from '@/lib/market';
+import { copperNews, liveLme, liveMarket, timeAgo } from '@/lib/market';
+import { lmeStrip } from '@/lib/pricing';
 import { cspToday } from '@/lib/queries';
-import { inrFull, perKg } from '@/lib/format';
+import { perKg } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewsPage() {
-  const [news, market] = await Promise.all([copperNews(20), liveMarket()]);
+  const [news, lq, comex] = await Promise.all([copperNews(20), liveLme(), liveMarket()]);
+  const strip = lmeStrip(lq?.usd_mt);
   const csp = cspToday();
 
   return (
@@ -15,39 +17,43 @@ export default async function NewsPage() {
       <AutoRefresh seconds={180} />
       <PageHead
         title="Market & news"
-        sub="Live world copper price and the latest headlines — check here before fixing a rate or placing a booking."
+        sub="Live LME copper — the same price the whole app builds its rates on — and the latest headlines. Check here before fixing a rate or booking."
       />
 
       <div className="grid tiles">
         <div className="card tile accent">
-          <div className="t-label">World copper (COMEX), live</div>
-          <div className="t-value">{market ? `$${market.copperUsdLb.toFixed(2)}/lb` : '—'}</div>
+          <div className="t-label">LME copper · cash {strip?.live ? '· live' : '· last saved'}</div>
+          <div className="t-value">{strip ? `$${Math.round(strip.usd_mt).toLocaleString('en-US')}/MT` : '—'}</div>
           <div className="t-note">
-            {market
-              ? market.copperChangePct != null
-                ? <span className={market.copperChangePct >= 0 ? 'pos' : 'neg'}>
-                    {market.copperChangePct >= 0 ? '▲' : '▼'} {Math.abs(market.copperChangePct).toFixed(2)}% vs yesterday
-                  </span>
-                : 'live'
-              : 'Live feed unreachable right now'}
+            {strip?.changePct != null
+              ? <span className={strip.changePct >= 0 ? 'pos' : 'neg'}>{strip.changePct >= 0 ? '▲' : '▼'} {Math.abs(strip.changePct).toFixed(1)}%</span>
+              : strip ? 'live from westmetall' : 'feed unreachable — using last saved'}
           </div>
         </div>
         <div className="card tile">
-          <div className="t-label">Dollar rate</div>
-          <div className="t-value">{market ? `₹${market.usdInr.toFixed(2)}` : '—'}</div>
-          <div className="t-note">USD / INR, live</div>
+          <div className="t-label">In ₹/kg (indication)</div>
+          <div className="t-value">{strip ? `₹${strip.inrPerKg.toFixed(1)}/kg` : '—'}</div>
+          <div className="t-note">LME × exchange, before premium &amp; duty</div>
         </div>
         <div className="card tile">
-          <div className="t-label">World price in ₹ (indication)</div>
-          <div className="t-value">{market ? perKg(market.indicativeInrMt) : '—'}</div>
-          <div className="t-note">{market ? `${inrFull(market.indicativeInrMt)} per MT, before premium & duty` : ''}</div>
+          <div className="t-label">Dollar · RBI TT</div>
+          <div className="t-value">{strip ? `₹${strip.fx.toFixed(2)}` : '—'}</div>
+          <div className="t-note">the rate the pricing formula uses</div>
         </div>
         <div className="card tile">
           <div className="t-label">Your saved price</div>
           <div className="t-value">{perKg(csp.price)}</div>
-          <div className="t-note">Producer rate you entered · compare with the live world price</div>
+          <div className="t-note">producer rate you entered · compare with LME</div>
         </div>
       </div>
+
+      {comex ? (
+        <p className="chart-note" style={{ marginTop: 10 }}>
+          World reference · COMEX futures <b>${comex.copperUsdLb.toFixed(2)}/lb</b>
+          {comex.copperChangePct != null ? ` (${comex.copperChangePct >= 0 ? '+' : ''}${comex.copperChangePct.toFixed(1)}% vs yesterday)` : ''}
+          {' '}· market USD/INR ₹{comex.usdInr.toFixed(2)}. CopperBook prices against LME, not COMEX — this is just a cross-check.
+        </p>
+      ) : null}
 
       <div className="card section-gap">
         <div className="card-pad" style={{ paddingBottom: 0 }}>
