@@ -95,7 +95,7 @@ function decodeEntities(s: string): string {
 
 export async function copperNews(limit = 14): Promise<NewsItem[]> {
   try {
-    const q = encodeURIComponent('copper price OR "LME copper" OR "MCX copper" OR "copper cathode" OR Hindalco copper');
+    const q = encodeURIComponent('copper price OR "LME copper" OR "MCX copper" OR "copper cathode" OR India copper');
     const url = `https://news.google.com/rss/search?q=${q}&hl=en-IN&gl=IN&ceid=IN:en`;
     const r = await fetch(url, { headers: FEED_HEADERS, next: { revalidate: 300 } });
     if (!r.ok) return [];

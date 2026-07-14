@@ -1,5 +1,5 @@
 // Key/value settings reads + the company (PO "buyer") profile.
-// Defaults are seeded from the Athivinayakar PI so the PO header works out of the box;
+// Defaults are a placeholder company so the PO header works out of the box;
 // all of it is editable from Settings.
 import { get } from './db';
 
@@ -15,10 +15,10 @@ export type Company = {
 };
 
 const DEFAULTS: Company = {
-  name: 'ATHIVINAYAKAR WIRES (P) LTD',
-  address: 'SF No 385/2B, Kattampatti Village, S.S. Kulam Via',
-  city: 'Coimbatore 641107', state: 'Tamil Nadu', state_code: '33',
-  gstin: '33AACCA2293G1Z0', pan: 'AACCA2293G', cin: 'U31300TZ2019PTC001566',
+  name: 'AURALIS COPPER WORKS (P) LTD',
+  address: 'Plot 14, SIDCO Industrial Estate, Kurichi',
+  city: 'Coimbatore 641021', state: 'Tamil Nadu', state_code: '33',
+  gstin: '33AAKCA7788M1Z4', pan: 'AAKCA7788M', cin: 'U27310TZ2020PTC009988',
   bank: '', branch: '', ifsc: '', account: '',
   logo: '',
 };

@@ -47,19 +47,19 @@ export function seedDemo(db: DatabaseSync) {
 
   // ---------- parties ----------
   const suppliers = [
-    ['Hindalco (Birla Copper)', 'Dahej, Gujarat', 'Rakesh Shah', '98250 11223', '24AAACH1201R1Z5', 0, 'Producer. Advance payment before lifting.'],
-    ['Vedanta Sterlite Copper', 'Silvassa', 'M. Krishnan', '98790 44556', '26AAACS7101P1Z3', 0, 'Producer. Advance / LC.'],
-    ['Kutch Copper (Adani)', 'Mundra, Gujarat', 'Jignesh Patel', '99090 77889', '24AAKCK9021Q1Z8', 7, 'New producer, ramping up.'],
-    ['Mehta Metals', 'Mumbai', 'Paresh Mehta', '98200 33445', '27AABCM4412E1Z9', 15, 'Trader. Imported cathode.'],
-    ['Shree Balaji Copper', 'Delhi', 'Sanjay Gupta', '98110 66778', '07AAECS8812K1Z2', 10, 'Trader. Scrap + cathode.'],
+    ['Ravindra Copper Mills', 'Dahej, Gujarat', 'Rohan Desai', '98250 11223', '24AAACH1201R1Z5', 0, 'Producer. Advance payment before lifting.'],
+    ['Sunfield Metals', 'Silvassa', 'M. Iyer', '98790 44556', '26AAACS7101P1Z3', 0, 'Producer. Advance / LC.'],
+    ['Dhruva Copper Nexus', 'Mundra, Gujarat', 'Jatin Parekh', '99090 77889', '24AAKCK9021Q1Z8', 7, 'New producer, ramping up.'],
+    ['Orbit Metals', 'Mumbai', 'Pranav Shah', '98200 33445', '27AABCM4412E1Z9', 15, 'Trader. Imported cathode.'],
+    ['Zenith Copper Traders', 'Delhi', 'Saurabh Jain', '98110 66778', '07AAECS8812K1Z2', 10, 'Trader. Scrap + cathode.'],
   ] as const;
   const customers = [
-    ['Sri Venkateswara Wires', 'Hyderabad', 'K. Ramesh', '98490 12321', '36AAACS4501B1Z6', 45, 'Winding wire maker.'],
-    ['Elite Winding Wires', 'Coimbatore', 'S. Palanisamy', '98430 45654', '33AABCE7723M1Z1', 60, 'Winding wire maker.'],
-    ['Jai Bharat Cables', 'Rajkot', 'Bhavesh Joshi', '98240 78987', '24AACCJ3345H1Z4', 30, 'Cable maker.'],
-    ['Annapurna Alloys', 'Jamnagar', 'Dinesh Thakkar', '99250 32123', '24AAFCA9910C1Z7', 45, 'Brass parts maker.'],
-    ['Kaveri Conductors', 'Salem', 'V. Murugan', '94430 65456', '33AAJCK2278L1Z0', 60, 'Conductor maker.'],
-    ['Lotus Electricals', 'Pune', 'Amit Kulkarni', '98220 98789', '27AALCL5567F1Z3', 30, 'Motor rewinding shop.'],
+    ['Trinetra Windings', 'Hyderabad', 'K. Prasad', '98490 12321', '36AAACS4501B1Z6', 45, 'Winding wire maker.'],
+    ['Crestline Wire Works', 'Coimbatore', 'S. Anand', '98430 45654', '33AABCE7723M1Z1', 60, 'Winding wire maker.'],
+    ['Vega Cables', 'Rajkot', 'Bhargav Mehta', '98240 78987', '24AACCJ3345H1Z4', 30, 'Cable maker.'],
+    ['Sankalp Alloys', 'Jamnagar', 'Devang Thakkar', '99250 32123', '24AAFCA9910C1Z7', 45, 'Brass parts maker.'],
+    ['Aravind Conductors', 'Salem', 'V. Karthik', '94430 65456', '33AAJCK2278L1Z0', 60, 'Conductor maker.'],
+    ['Nirvana Electricals', 'Pune', 'Amol Kulkarni', '98220 98789', '27AALCL5567F1Z3', 30, 'Motor rewinding shop.'],
   ] as const;
 
   const insParty = db.prepare(
@@ -73,11 +73,11 @@ export function seedDemo(db: DatabaseSync) {
   // ---------- Phase 1: exchange basis, supplier terms, LME + FX series ----------
   // [premium USD/MT, factor %, handling INR/MT, transaction USD/MT, delivery days, credit days, TT basis]
   const supTerms: [number, number, number, number, number, number, string][] = [
-    [180, 3.75, 6200, 10, 4, 0, 'RBI_TT'],   // Hindalco
-    [200, 3.75, 6100, 10, 3, 0, 'RBI_TT'],   // Vedanta
-    [210, 5.5, 5900, 10, 5, 7, 'SBI_TT'],    // Kutch
-    [260, 5.5, 6000, 10, 6, 15, 'SBI_TT'],   // Mehta
-    [150, 5.5, 6100, 10, 3, 10, 'RBI_TT'],   // Shree Balaji
+    [180, 3.75, 6200, 10, 4, 0, 'RBI_TT'],   // Ravindra
+    [200, 3.75, 6100, 10, 3, 0, 'RBI_TT'],   // Sunfield
+    [210, 5.5, 5900, 10, 5, 7, 'SBI_TT'],    // Dhruva
+    [260, 5.5, 6000, 10, 6, 15, 'SBI_TT'],   // Orbit
+    [150, 5.5, 6100, 10, 3, 10, 'RBI_TT'],   // Zenith
   ];
   const upBasis = db.prepare(`UPDATE parties SET exchange_basis = ? WHERE id = ?`);
   supplierIds.forEach((id, i) => upBasis.run(supTerms[i][6], id));
