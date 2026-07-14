@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { PageHead, Tile } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
-import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard } from '@/lib/queries';
+import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard, alerts, basisAlerts } from '@/lib/queries';
 import { copperNews, timeAgo, liveLme } from '@/lib/market';
 import { lmeStrip } from '@/lib/pricing';
 import { mt, inr, monthLabel, today } from '@/lib/format';
@@ -23,6 +23,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const totTarget = plan.reduce((s, r) => s + r.target_mt, 0);
   const totLifted = plan.reduce((s, r) => s + r.lifted_mt, 0);
+  const order = { critical: 0, warning: 1, info: 2 };
+  const attention = [...basisAlerts(), ...alerts()].sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 8);
 
   return (
     <>
@@ -119,6 +121,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
         )}
       </div>
+
+      {attention.length > 0 && (
+        <div className="section-gap">
+          <div className="section-title">Needs your attention</div>
+          <div className="card card-pad">
+            <div className="alert-list">
+              {attention.map((a, i) => (
+                <Link href={a.href} key={i} className={`alert ${a.severity}`}>
+                  <span className="a-dot" />
+                  <span>
+                    <div className="a-title">{a.title}</div>
+                    <div className="a-detail">{a.detail}</div>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="section-gap">
         <div className="section-title">Which supplier is better</div>

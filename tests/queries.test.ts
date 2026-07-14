@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { destroyTestDb, seedFixtures, useTestDb, type Fixtures } from './helpers';
+import { destroyTestDb, isoDaysAgo, seedFixtures, useTestDb, type Fixtures } from './helpers';
+import { get, run } from '@/lib/db';
 import {
-  alerts, bookings, bookingsSummary, cspToday, customerProfit, dealMargins, dnplDeadline, invoices, orderList,
+  alerts, bookings, bookingsSummary, cspToday, customerProfit, dealMargins, dealMarginsBasis, dnplDeadline, invoices, orderList,
   moneySummary, monthlyTrade, partyLedger, partySummaries, receivableAging,
   supplierScorecard, truckSummary, trucks, typicalSellRate, unpricedExposure, whereToBuy,
 } from '@/lib/queries';
@@ -185,6 +186,25 @@ describe('orderList (orders tracker filters)', () => {
     // newest first
     const dates = rows.map((o) => o.booking_date);
     expect([...dates].sort((a, b) => (a < b ? 1 : -1))).toEqual(dates);
+  });
+});
+
+describe('dealMarginsBasis (basis-mismatch P&L)', () => {
+  it('flags a buy/sell basis mismatch and computes the realized ₹/kg margin', () => {
+    const sup = Number(run(`INSERT INTO parties (name,type) VALUES ('SupZ','SUPPLIER')`).lastInsertRowid);
+    const cus = Number(run(`INSERT INTO parties (name,type) VALUES ('CusZ','CUSTOMER')`).lastInsertRowid);
+    const pb = Number(run(`INSERT INTO bookings (booking_no,kind,party_id,booking_date,qty_mt,pricing_basis,premium_inr_mt,status) VALUES ('PBZ','PURCHASE',?,?,5,'MONTH_AVG',0,'OPEN')`, sup, isoDaysAgo(5)).lastInsertRowid);
+    run(`INSERT INTO price_fixations (booking_id,fixation_date,qty_mt,price_inr_mt,reference) VALUES (?,?,5,900000,'CSP')`, pb, isoDaysAgo(5));
+    const sb = Number(run(`INSERT INTO bookings (booking_no,kind,party_id,booking_date,qty_mt,pricing_basis,premium_inr_mt,status,linked_booking_id) VALUES ('SBZ','SALE',?,?,5,'DAY_PRICE',0,'OPEN',?)`, cus, isoDaysAgo(3), pb).lastInsertRowid);
+    run(`INSERT INTO price_fixations (booking_id,fixation_date,qty_mt,price_inr_mt,reference) VALUES (?,?,5,915000,'CSP')`, sb, isoDaysAgo(3));
+
+    const d = dealMarginsBasis().find((x) => x.sale_no === 'SBZ')!;
+    expect(d.buy_basis).toBe('MONTH_AVG');
+    expect(d.sell_basis).toBe('DAY_PRICE');
+    expect(d.mismatch).toBe(true);
+    expect(d.margin_kg).toBe(15);   // (915000 − 900000) / 1000
+    expect(d.loss).toBe(false);
+    expect(typeof d.basis_effect_kg).toBe('number');
   });
 });
 

@@ -1,7 +1,8 @@
 // All business queries. Every insight the dashboard shows is computed here,
 // directly from the event tables — nothing is stored twice.
 import { all, get } from './db';
-import { today } from './format';
+import { today, BASIS_LABEL } from './format';
+import { resolveLme, fxRate, latestLme, type PriceBasis } from './pricing';
 
 // ---------- shared SQL fragments (used across queries — keep in one place) ----------
 /** Per-booking fixation aggregate: fixed qty + weighted avg rate. Alias it. */
@@ -240,6 +241,56 @@ export function dealMargins() {
             s.booking_date sale_date
      ${MATCHED_DEALS}
      ORDER BY s.booking_date DESC`);
+}
+
+// ---------- basis-mismatch P&L (Sales S5) ----------
+const bookingBasisToLme = (b: string): PriceBasis =>
+  b === 'WEEK_AVG' ? 'WEEK_AVG' : b === 'FORTNIGHT_AVG' ? 'FORTNIGHT_AVG' : b === 'MONTH_AVG' ? 'MONTH_AVG' : 'DAY';
+
+export type DealBasis = {
+  sale_no: string; purchase_no: string; customer: string; supplier: string; qty: number;
+  buy_basis: string; sell_basis: string; buy_rate_kg: number; sell_rate_kg: number;
+  margin_kg: number; basis_effect_kg: number; mismatch: boolean; loss: boolean;
+};
+
+/** Each matched sale↔purchase with both pricing bases, the realized ₹/kg margin, and the
+ *  basis effect: how much the buy-basis-vs-sell-basis LME gap moved the economics in our
+ *  favour (+) or against us (−). A sale priced on a lower-LME basis than it was bought on
+ *  is squeezed — that's the risk the trader flagged (bought month-avg, sold day-avg). */
+export function dealMarginsBasis(): DealBasis[] {
+  const rows = all<{ sale_no: string; purchase_no: string; customer: string; supplier: string; qty: number; sell_mt: number; buy_mt: number; buy_basis: string; sell_basis: string }>(
+    `SELECT s.booking_no sale_no, pb.booking_no purchase_no, cp.name customer, sup.name supplier,
+            ${DEAL_QTY} qty, sf.rate sell_mt, pf.rate buy_mt, pb.pricing_basis buy_basis, s.pricing_basis sell_basis
+     ${MATCHED_DEALS}
+     ORDER BY s.booking_date DESC`);
+  const fx = fxRate('RBI_TT');
+  const latest = latestLme()?.usd_mt ?? 0;
+  return rows.map((r) => {
+    const buy_rate_kg = Math.round(r.buy_mt / 10) / 100;
+    const sell_rate_kg = Math.round(r.sell_mt / 10) / 100;
+    const margin_kg = Math.round((sell_rate_kg - buy_rate_kg) * 100) / 100;
+    const lmeBuy = resolveLme(bookingBasisToLme(r.buy_basis)) ?? latest;
+    const lmeSell = resolveLme(bookingBasisToLme(r.sell_basis)) ?? latest;
+    const basis_effect_kg = Math.round(((lmeSell - lmeBuy) * fx / 1000) * 100) / 100;
+    return {
+      sale_no: r.sale_no, purchase_no: r.purchase_no, customer: r.customer, supplier: r.supplier, qty: r.qty,
+      buy_basis: r.buy_basis, sell_basis: r.sell_basis, buy_rate_kg, sell_rate_kg, margin_kg,
+      basis_effect_kg, mismatch: r.buy_basis !== r.sell_basis, loss: margin_kg < 0,
+    };
+  });
+}
+
+/** Basis-mismatch deals worth flagging: an actual loss, or a real basis drag on a mismatch. */
+export function basisAlerts(): Alert[] {
+  return dealMarginsBasis()
+    .filter((d) => d.mismatch && (d.loss || d.basis_effect_kg <= -5))
+    .slice(0, 4)
+    .map((d) => ({
+      severity: d.loss ? 'critical' as const : 'warning' as const,
+      title: `${d.sale_no}: bought ${BASIS_LABEL[d.buy_basis] ?? d.buy_basis}, sold ${BASIS_LABEL[d.sell_basis] ?? d.sell_basis} — ${d.loss ? `loss ₹${Math.abs(d.margin_kg).toFixed(1)}/kg` : `basis drag ₹${Math.abs(d.basis_effect_kg).toFixed(1)}/kg`}`,
+      detail: `${d.customer} ← ${d.supplier} · margin ₹${d.margin_kg.toFixed(1)}/kg`,
+      href: '/sales/margins',
+    }));
 }
 
 export function customerProfit() {

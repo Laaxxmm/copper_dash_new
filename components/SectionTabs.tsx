@@ -14,6 +14,7 @@ const SALES_TABS = [
   { href: '/sales', label: 'Customers' },
   { href: '/sales/pricing', label: 'Products & pricing' },
   { href: '/sales/orders', label: 'Sell orders' },
+  { href: '/sales/margins', label: 'Margins' },
   { href: '/sales/inbox', label: 'Customer inbox' },
 ];
 
