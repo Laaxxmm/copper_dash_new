@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHead } from '@/components/ui';
@@ -15,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 function pct(a: number, b: number) { return b > 0 ? Math.min(100, Math.round((a / b) * 100)) : 0; }
 
-export default async function SupplierPage({ params }: { params: Promise<{ id: string }> }) {
+async function SupplierPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const sup = supplierDetail(id);
   if (!sup) notFound();
@@ -160,3 +161,5 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
     </>
   );
 }
+
+export default withTenantPage(SupplierPage);

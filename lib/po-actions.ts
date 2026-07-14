@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 // Create / cancel purchase orders. The PO's provisional rate is computed from
 // the live LME + the supplier's remembered terms; the gross becomes the
 // committed cost of purchase (Phase A's costOfPurchase reads purchase_orders).
@@ -12,7 +13,7 @@ import { companyProfile } from './company';
 import { latestLme, fxRate } from './pricing';
 import { westmetallLme } from './market';
 
-export async function createPO(fd: FormData) {
+async function _createPO(fd: FormData) {
   const sid = Number(fd.get('supplier_id'));
   const pid = Number(fd.get('product_id'));
   const qty = Number(fd.get('qty_mt'));
@@ -48,10 +49,13 @@ export async function createPO(fd: FormData) {
   redirect(`/po/${id}`);
 }
 
-export async function cancelPO(fd: FormData) {
+async function _cancelPO(fd: FormData) {
   const id = Number(fd.get('po_id'));
   if (!id) redirect('/');
   run(`UPDATE purchase_orders SET status = 'CANCELLED', cancelled_date = ? WHERE id = ? AND status = 'SENT'`, today(), id);
   revalidatePath('/', 'layout');
   redirect(`/po/${id}`);
 }
+
+export const createPO = withTenant(_createPO);
+export const cancelPO = withTenant(_cancelPO);

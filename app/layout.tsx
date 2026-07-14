@@ -8,6 +8,8 @@ import CollectionsBanner from '@/components/CollectionsBanner';
 import { companyProfile, getSetting } from '@/lib/company';
 import { collectionsSummary } from '@/lib/queries';
 import { currentUser } from '@/lib/current-user';
+import { resolveTenant } from '@/lib/tenant-resolve';
+import { runWithTenant } from '@/lib/tenant';
 import { dateLong, inr, today } from '@/lib/format';
 
 const display = Newsreader({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-display' });
@@ -20,6 +22,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Scope covers the layout's own data (below). Child pages render as separate
+  // work and re-enter the scope themselves via withTenantPage.
+  return runWithTenant(await resolveTenant(), () => renderShell(children));
+}
+
+async function renderShell(children: React.ReactNode) {
   const co = companyProfile();
   const collect = collectionsSummary();
   const me = await currentUser();

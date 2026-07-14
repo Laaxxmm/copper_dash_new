@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { all } from '@/lib/db';
@@ -6,7 +7,7 @@ import { createPO } from '@/lib/po-actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewPOPage({ searchParams }: { searchParams: Promise<{ supplier?: string; product?: string }> }) {
+async function NewPOPage({ searchParams }: { searchParams: Promise<{ supplier?: string; product?: string }> }) {
   const sp = await searchParams;
   const suppliers = all<{ id: number; name: string }>(`SELECT id, name FROM parties WHERE type='SUPPLIER' ORDER BY (manual_rank IS NULL), manual_rank, name`);
   const prods = products();
@@ -42,3 +43,5 @@ export default async function NewPOPage({ searchParams }: { searchParams: Promis
     </>
   );
 }
+
+export default withTenantPage(NewPOPage);

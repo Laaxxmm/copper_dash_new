@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PrintButton from '@/components/PrintButton';
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 
 const rs = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default async function SalePIPage({ params }: { params: Promise<{ id: string }> }) {
+async function SalePIPage({ params }: { params: Promise<{ id: string }> }) {
   const pi = salePIFull(Number((await params).id));
   if (!pi) notFound();
   const co = companyProfile();
@@ -90,3 +91,5 @@ export default async function SalePIPage({ params }: { params: Promise<{ id: str
     </>
   );
 }
+
+export default withTenantPage(SalePIPage);

@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { priceTemplates, saleProducts, templateWithLines, evalFormula } from '@/lib/sale-pricing';
@@ -14,7 +15,7 @@ function cheapestBuy(rawId: number | null): number {
   return rows.length ? rows[0].rate_inr_kg : 0;
 }
 
-export default async function PricingPage({ searchParams }: { searchParams: Promise<{ err?: string }> }) {
+async function PricingPage({ searchParams }: { searchParams: Promise<{ err?: string }> }) {
   const { err } = await searchParams;
   const templates = priceTemplates();
   const prods = saleProducts();
@@ -116,3 +117,5 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
     </>
   );
 }
+
+export default withTenantPage(PricingPage);

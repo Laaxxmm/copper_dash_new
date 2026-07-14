@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import { notFound } from 'next/navigation';
 import { PageHead } from '@/components/ui';
 import TemplateBuilder from '@/components/TemplateBuilder';
@@ -5,7 +6,7 @@ import { templateWithLines } from '@/lib/sale-pricing';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
+async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
   const t = templateWithLines(Number((await params).id));
   if (!t) notFound();
   return (
@@ -15,3 +16,5 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
     </>
   );
 }
+
+export default withTenantPage(EditTemplatePage);

@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { get, run } from './db';
@@ -20,7 +21,7 @@ function reqNo(): string {
   return `REQ-${ym}-${String(n + 1).padStart(3, '0')}`;
 }
 
-export async function addRequirement(fd: FormData) {
+async function _addRequirement(fd: FormData) {
   const productId = num(fd, 'product_id');
   const qty = num(fd, 'qty');
   const customerId = num(fd, 'customer_id') || null;
@@ -62,7 +63,7 @@ function checkLeg(fd: FormData) {
 
 /** Send an ordering slip: record an ENQUIRY leg (no booking yet). The email itself
  *  goes out via a mailto link on the requirement page — no SMTP, uses the client's mail app. */
-export async function sendEnquiry(fd: FormData) {
+async function _sendEnquiry(fd: FormData) {
   const { reqId, supplierId, qty, back, rate, tier } = checkLeg(fd);
   run(
     `INSERT INTO allocations (requirement_id, supplier_id, tier_label, qty_mt, rate_inr_kg, booking_id, status, created_date, sent_at, notes)
@@ -74,7 +75,7 @@ export async function sendEnquiry(fd: FormData) {
 }
 
 /** Confirm a supplier's PI: turn an ENQUIRY leg into a booked leg. */
-export async function confirmEnquiry(fd: FormData) {
+async function _confirmEnquiry(fd: FormData) {
   const allocId = num(fd, 'allocation_id');
   const reqId = num(fd, 'requirement_id');
   if (bookEnquiry(allocId) == null) fail(`/requirements/${reqId}`, 'This leg is not an open enquiry.');
@@ -83,7 +84,7 @@ export async function confirmEnquiry(fd: FormData) {
 }
 
 /** Directly commit a leg (skip the enquiry step) — used by tests/quick entry. */
-export async function addAllocation(fd: FormData) {
+async function _addAllocation(fd: FormData) {
   const { reqId, supplierId, qty, back, req, rate, tier } = checkLeg(fd);
   const bookingId = bookLeg(supplierId, req.product_id, qty, `From ${str(fd, 'req_no') || 'requirement'}`);
   run(
@@ -95,16 +96,23 @@ export async function addAllocation(fd: FormData) {
   redirect(back);
 }
 
-export async function cancelAllocation(fd: FormData) {
+async function _cancelAllocation(fd: FormData) {
   const reqId = num(fd, 'requirement_id');
   if (cancelAlloc(num(fd, 'allocation_id')) == null) fail(`/requirements/${reqId}`, 'Allocation not found.');
   refresh();
   redirect(`/requirements/${reqId}`);
 }
 
-export async function cancelRequirement(fd: FormData) {
+async function _cancelRequirement(fd: FormData) {
   const reqId = num(fd, 'requirement_id');
   run(`UPDATE requirements SET status = 'CANCELLED' WHERE id = ?`, reqId);
   refresh();
   redirect(`/requirements/${reqId}`);
 }
+
+export const addRequirement = withTenant(_addRequirement);
+export const sendEnquiry = withTenant(_sendEnquiry);
+export const confirmEnquiry = withTenant(_confirmEnquiry);
+export const addAllocation = withTenant(_addAllocation);
+export const cancelAllocation = withTenant(_cancelAllocation);
+export const cancelRequirement = withTenant(_cancelRequirement);

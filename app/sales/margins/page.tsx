@@ -1,10 +1,11 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { dealMarginsBasis } from '@/lib/queries';
 import { mt, inr, BASIS_LABEL } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default function MarginsPage() {
+function MarginsPage() {
   const deals = dealMarginsBasis();
   const realized = deals.reduce((s, d) => s + d.margin_kg * d.qty * 1000, 0);
   const mismatches = deals.filter((d) => d.mismatch);
@@ -56,3 +57,5 @@ export default function MarginsPage() {
     </>
   );
 }
+
+export default withTenantPage(MarginsPage);

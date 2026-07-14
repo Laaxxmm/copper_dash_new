@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { saleProducts, openPurchaseLots } from '@/lib/sale-pricing';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 const SELL_BASES = ['DAY_PRICE', 'WEEK_AVG', 'FORTNIGHT_AVG', 'MONTH_AVG'];
 
-export default async function NewSalePIPage({ searchParams }: { searchParams: Promise<{ customer?: string; err?: string }> }) {
+async function NewSalePIPage({ searchParams }: { searchParams: Promise<{ customer?: string; err?: string }> }) {
   const { err } = await searchParams;
   const customers = all<{ id: number; name: string }>(`SELECT id, name FROM parties WHERE type='CUSTOMER' ORDER BY name`);
   const prods = saleProducts();
@@ -64,3 +65,5 @@ export default async function NewSalePIPage({ searchParams }: { searchParams: Pr
     </>
   );
 }
+
+export default withTenantPage(NewSalePIPage);

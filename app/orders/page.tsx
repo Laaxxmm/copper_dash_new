@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead, StatusBadge } from '@/components/ui';
 import { orderList } from '@/lib/queries';
@@ -13,7 +14,7 @@ function weekStart(t: string): string {
   return x.toISOString().slice(0, 10);
 }
 
-export default async function OrdersPage({ searchParams }: {
+async function OrdersPage({ searchParams }: {
   searchParams: Promise<{ from?: string; to?: string; product?: string; supplier?: string; status?: string }>;
 }) {
   const sp = await searchParams;
@@ -131,3 +132,5 @@ export default async function OrdersPage({ searchParams }: {
     </>
   );
 }
+
+export default withTenantPage(OrdersPage);

@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import ProfitBar from '@/components/ProfitBar';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 const CATEGORIES = ['Salary', 'Rent', 'Power', 'Transport', 'Interest', 'Office', 'Other'];
 
-export default async function FinancePage({ searchParams }: { searchParams: Promise<{ month?: string; err?: string }> }) {
+async function FinancePage({ searchParams }: { searchParams: Promise<{ month?: string; err?: string }> }) {
   const sp = await searchParams;
   const month = sp.month || today().slice(0, 7);
   const expenses = expensesList(month);
@@ -111,3 +112,5 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     </>
   );
 }
+
+export default withTenantPage(FinancePage);

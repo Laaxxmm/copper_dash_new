@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHead } from '@/components/ui';
@@ -9,7 +10,7 @@ import { inr, inrFull, dateShort } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
+async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   const c = party(id);
   if (!c || c.type !== 'CUSTOMER') notFound();
@@ -102,3 +103,5 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     </>
   );
 }
+
+export default withTenantPage(CustomerPage);

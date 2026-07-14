@@ -1,3 +1,4 @@
+import { withTenant } from '@/lib/tenant-resolve';
 // Excel report downloads: /api/report?type=<type>&from=YYYY-MM-DD&to=YYYY-MM-DD
 // Types: bookings | bills | payments | trucks | profit | ledger (needs &party=<id>) | all
 import { NextRequest } from 'next/server';
@@ -192,7 +193,7 @@ function sheet(wb: XLSX.WorkBook, name: string, rows: Row[]) {
   XLSX.utils.book_append_sheet(wb, ws, name);
 }
 
-export async function GET(req: NextRequest) {
+async function _GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const type = sp.get('type') ?? 'all';
   const from = sp.get('from') || '2000-01-01';
@@ -230,3 +231,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withTenant(_GET);

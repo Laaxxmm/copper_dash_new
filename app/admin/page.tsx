@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { requireSuperAdmin } from '@/lib/current-user';
 import { listClients, listUsers } from '@/lib/control-db';
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'Super admin', CLIENT_ADMIN: 'Client admin', STAFF: 'Staff' };
 
-export default async function AdminPage() {
+async function AdminPage() {
   await requireSuperAdmin();
   const clients = listClients();
   const users = listUsers();
@@ -66,3 +67,5 @@ export default async function AdminPage() {
     </>
   );
 }
+
+export default withTenantPage(AdminPage);

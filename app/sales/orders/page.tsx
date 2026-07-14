@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { salePIList } from '@/lib/sale-pricing';
@@ -5,7 +6,7 @@ import { inr, dateShort, BASIS_LABEL } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default function SellOrdersPage() {
+function SellOrdersPage() {
   const rows = salePIList();
   const live = rows.filter((r) => r.status === 'SENT');
   const totalGross = live.reduce((s, r) => s + r.gross_amount, 0);
@@ -48,3 +49,5 @@ export default function SellOrdersPage() {
     </>
   );
 }
+
+export default withTenantPage(SellOrdersPage);

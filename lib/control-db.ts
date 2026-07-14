@@ -85,6 +85,10 @@ export function listClients(): ClientRow[] {
   return getControlDb().prepare(
     `SELECT c.*, (SELECT COUNT(*) FROM users WHERE client_id = c.id) users FROM clients c ORDER BY c.id`).all() as ClientRow[];
 }
+export function clientById(id: number): ClientRow | undefined {
+  return getControlDb().prepare(
+    `SELECT c.*, (SELECT COUNT(*) FROM users WHERE client_id = c.id) users FROM clients c WHERE c.id = ?`).get(id) as ClientRow | undefined;
+}
 export function listUsers(): (ControlUser & { client_name: string | null; last_login: string | null })[] {
   return getControlDb().prepare(
     `SELECT u.id, u.client_id, u.username, u.email, u.role, u.status, u.perms_json, u.last_login,

@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
 import { copperNews, liveLme, liveMarket, timeAgo } from '@/lib/market';
@@ -7,7 +8,7 @@ import { perKg } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewsPage() {
+async function NewsPage() {
   const [news, lq, comex] = await Promise.all([copperNews(20), liveLme(), liveMarket()]);
   const strip = lmeStrip(lq?.usd_mt);
   const csp = cspToday();
@@ -86,3 +87,5 @@ export default async function NewsPage() {
     </>
   );
 }
+
+export default withTenantPage(NewsPage);

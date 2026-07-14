@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead, Badge } from '@/components/ui';
 import { pendingCaptures, type ParsedDoc } from '@/lib/capture';
@@ -7,7 +8,7 @@ import { inr, mt } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function InboxPage({ searchParams }: { searchParams: Promise<{ err?: string; msg?: string }> }) {
+async function InboxPage({ searchParams }: { searchParams: Promise<{ err?: string; msg?: string }> }) {
   const { err, msg } = await searchParams;
   const rows = pendingCaptures();
   const gmailReady = !!getSetting('mail:app_password');
@@ -110,3 +111,5 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     </>
   );
 }
+
+export default withTenantPage(InboxPage);

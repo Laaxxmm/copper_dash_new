@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead, Tile } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
@@ -14,7 +15,7 @@ function pct(n: number, d: number) {
   return d > 0 ? Math.min(100, Math.round((n / d) * 100)) : 0;
 }
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+async function DashboardPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month = today().slice(0, 7) } = await searchParams;
   const [lq, headlines] = await Promise.all([liveLme(), copperNews(3)]);
   const strip = lmeStrip(lq?.usd_mt);
@@ -162,3 +163,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     </>
   );
 }
+
+export default withTenantPage(DashboardPage);

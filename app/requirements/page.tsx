@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead, Badge } from '@/components/ui';
 import { requirements } from '@/lib/requirements';
@@ -12,7 +13,7 @@ function StatusPill({ status }: { status: string }) {
   return <Badge tone="copper">Open</Badge>;
 }
 
-export default function RequirementsPage() {
+function RequirementsPage() {
   const rows = requirements();
   return (
     <>
@@ -77,3 +78,5 @@ export default function RequirementsPage() {
     </>
   );
 }
+
+export default withTenantPage(RequirementsPage);

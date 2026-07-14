@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead, Badge } from '@/components/ui';
 import { partySummaries } from '@/lib/queries';
@@ -58,7 +59,7 @@ function PartyTable({ title, rows, isSupplier }: { title: string; rows: ReturnTy
   );
 }
 
-export default function PartiesPage() {
+function PartiesPage() {
   const suppliers = partySummaries('SUPPLIER');
   const customers = partySummaries('CUSTOMER');
   return (
@@ -77,3 +78,5 @@ export default function PartiesPage() {
     </>
   );
 }
+
+export default withTenantPage(PartiesPage);

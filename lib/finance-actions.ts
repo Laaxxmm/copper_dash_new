@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { run } from './db';
@@ -8,7 +9,7 @@ import { today } from './format';
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 const num = (fd: FormData, k: string) => Number(fd.get(k) ?? 0);
 
-export async function addExpense(fd: FormData) {
+async function _addExpense(fd: FormData) {
   const month = str(fd, 'month') || today().slice(0, 7);
   const category = str(fd, 'category') || 'Other';
   const amount = Math.max(0, num(fd, 'amount'));
@@ -19,8 +20,11 @@ export async function addExpense(fd: FormData) {
   redirect(`/finance?month=${month}`);
 }
 
-export async function deleteExpense(fd: FormData) {
+async function _deleteExpense(fd: FormData) {
   run(`DELETE FROM expenses WHERE id = ?`, num(fd, 'expense_id'));
   revalidatePath('/', 'layout');
   redirect('/finance');
 }
+
+export const addExpense = withTenant(_addExpense);
+export const deleteExpense = withTenant(_deleteExpense);

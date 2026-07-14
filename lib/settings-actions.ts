@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getDb, run } from './db';
@@ -7,7 +8,7 @@ import { clearAllData, seedDemo } from './seed';
 
 /** Appearance: accent colour, density, and whether the collections banner shows.
  *  Persisted in settings and applied app-wide via data-attributes on <html>. */
-export async function saveAppearance(fd: FormData) {
+async function _saveAppearance(fd: FormData) {
   const accent = ['copper', 'green', 'blue', 'plum'].includes(String(fd.get('accent'))) ? String(fd.get('accent')) : 'copper';
   const density = String(fd.get('density')) === 'compact' ? 'compact' : 'comfortable';
   const banner = fd.get('banner') === 'on' ? 'on' : 'off';
@@ -19,7 +20,7 @@ export async function saveAppearance(fd: FormData) {
 }
 
 /** Company (PO buyer) profile + optional logo upload (stored as a data URI). */
-export async function saveCompany(fd: FormData) {
+async function _saveCompany(fd: FormData) {
   const keys = ['name', 'address', 'city', 'state', 'state_code', 'gstin', 'pan', 'cin', 'bank', 'branch', 'ifsc', 'account'];
   for (const k of keys) run(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, `company:${k}`, String(fd.get(k) ?? '').trim());
   const logo = fd.get('logo');
@@ -34,7 +35,7 @@ export async function saveCompany(fd: FormData) {
 
 /** Mailbox → supplier map: each supplier's sender email domain + keywords, used to
  *  auto-route incoming PI/PO. Saved per supplier from the Settings form. */
-export async function saveMailMap(fd: FormData) {
+async function _saveMailMap(fd: FormData) {
   const ids = fd.getAll('sid').map(Number);
   for (const sid of ids) {
     run(`UPDATE parties SET email = ?, mail_keywords = ? WHERE id = ?`,
@@ -47,7 +48,7 @@ export async function saveMailMap(fd: FormData) {
 
 /** Gmail/IMAP connection settings for auto-pulling PI/PO. Stored server-side; the
  *  live fetch worker (Phase F) reads these once a real app password is entered. */
-export async function saveGmail(fd: FormData) {
+async function _saveGmail(fd: FormData) {
   const kv: [string, string][] = [
     ['mail:address', String(fd.get('address') ?? '').trim()],
     ['mail:app_password', String(fd.get('app_password') ?? '').trim()],
@@ -60,7 +61,7 @@ export async function saveGmail(fd: FormData) {
 }
 
 /** Wipe every record — bookings, trucks, bills, payments, people, prices. */
-export async function eraseAllData(formData: FormData) {
+async function _eraseAllData(formData: FormData) {
   if (String(formData.get('confirm') ?? '') !== 'ERASE') {
     redirect('/settings?err=confirm');
   }
@@ -70,10 +71,17 @@ export async function eraseAllData(formData: FormData) {
 }
 
 /** Reset back to the built-in demo data (clears first, then re-seeds). */
-export async function reloadDemoData() {
+async function _reloadDemoData() {
   const db = getDb();
   clearAllData(db);
   seedDemo(db);
   revalidatePath('/', 'layout');
   redirect('/settings?done=demo');
 }
+
+export const saveAppearance = withTenant(_saveAppearance);
+export const saveCompany = withTenant(_saveCompany);
+export const saveMailMap = withTenant(_saveMailMap);
+export const saveGmail = withTenant(_saveGmail);
+export const eraseAllData = withTenant(_eraseAllData);
+export const reloadDemoData = withTenant(_reloadDemoData);

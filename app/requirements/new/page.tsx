@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { products } from '@/lib/pricing';
@@ -7,7 +8,7 @@ import { today } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewRequirementPage({ searchParams }: { searchParams: Promise<{ err?: string }> }) {
+async function NewRequirementPage({ searchParams }: { searchParams: Promise<{ err?: string }> }) {
   const { err } = await searchParams;
   const prods = products();
   const customers = all<{ id: number; name: string }>(`SELECT id, name FROM parties WHERE type='CUSTOMER' ORDER BY name`);
@@ -59,3 +60,5 @@ export default async function NewRequirementPage({ searchParams }: { searchParam
     </>
   );
 }
+
+export default withTenantPage(NewRequirementPage);

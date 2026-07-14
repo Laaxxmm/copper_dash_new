@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { all, get } from '@/lib/db';
@@ -16,7 +17,7 @@ const TABS = [
   { key: 'lme', label: "Today's LME" },
 ];
 
-export default async function AddPage({ searchParams }: { searchParams: Promise<{ what?: string; err?: string }> }) {
+async function AddPage({ searchParams }: { searchParams: Promise<{ what?: string; err?: string }> }) {
   const { what = 'booking', err } = await searchParams;
 
   const suppliers = all<{ id: number; name: string }>(`SELECT id, name FROM parties WHERE type='SUPPLIER' ORDER BY name`);
@@ -261,3 +262,5 @@ export default async function AddPage({ searchParams }: { searchParams: Promise<
     </>
   );
 }
+
+export default withTenantPage(AddPage);

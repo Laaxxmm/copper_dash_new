@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import SupplierCompare from '@/components/SupplierCompare';
@@ -12,7 +13,7 @@ function pct(n: number, d: number) {
   return d > 0 ? Math.min(100, Math.round((n / d) * 100)) : 0;
 }
 
-export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ month?: string; product?: string }> }) {
+async function SuppliersPage({ searchParams }: { searchParams: Promise<{ month?: string; product?: string }> }) {
   const sp = await searchParams;
   const prods = products();
   const month = sp.month || today().slice(0, 7);
@@ -91,3 +92,5 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
     </>
   );
 }
+
+export default withTenantPage(SuppliersPage);

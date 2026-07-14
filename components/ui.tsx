@@ -1,8 +1,13 @@
 import { cspToday } from '@/lib/queries';
 import { perKg, dateLong, inrFull } from '@/lib/format';
+import { runWithTenant } from '@/lib/tenant';
+import { resolveTenant } from '@/lib/tenant-resolve';
 
-export function PageHead({ title, sub }: { title: string; sub: string }) {
-  const csp = cspToday();
+// PageHead renders as a child of each page, i.e. outside that page's tenant
+// scope (Next renders it as separate work), so it re-enters the scope itself to
+// read the caller's copper price. resolveTenant() is cache()'d — no extra cost.
+export async function PageHead({ title, sub }: { title: string; sub: string }) {
+  const csp = await runWithTenant(await resolveTenant(), () => cspToday());
   const up = csp.change >= 0;
   return (
     <header className="page-head">

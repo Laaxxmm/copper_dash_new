@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { CopperIngots } from '@/components/CopperArt';
 import EraseForm from '@/components/EraseForm';
@@ -9,7 +10,7 @@ import { all } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ done?: string; err?: string }> }) {
+async function SettingsPage({ searchParams }: { searchParams: Promise<{ done?: string; err?: string }> }) {
   const { done, err } = await searchParams;
   const counts = Object.fromEntries(
     ['parties', 'bookings', 'liftings', 'invoices', 'payments'].map((t) => [
@@ -188,3 +189,5 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     </>
   );
 }
+
+export default withTenantPage(SettingsPage);

@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHead, StatusBadge, Pipeline } from '@/components/ui';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const LIFT_STATUS: Record<string, string> = { IN_TRANSIT: 'In transit', ARRIVED: 'Arrived', UNLOADED: 'Unloaded' };
 
-export default async function OrderPage({ params }: { params: Promise<{ ref: string }> }) {
+async function OrderPage({ params }: { params: Promise<{ ref: string }> }) {
   const ref = decodeURIComponent((await params).ref);
   const data = orderDetail(ref);
   if (!data) notFound();
@@ -126,3 +127,5 @@ export default async function OrderPage({ params }: { params: Promise<{ ref: str
     </>
   );
 }
+
+export default withTenantPage(OrderPage);

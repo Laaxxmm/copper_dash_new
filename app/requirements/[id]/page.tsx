@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHead, Tile, Badge } from '@/components/ui';
@@ -18,7 +19,7 @@ const ALLOC_STATUS: Record<string, { tone: 'good' | 'warn' | 'bad' | 'neutral' |
   CANCELLED: { tone: 'bad', label: 'Cancelled' },
 };
 
-export default async function RequirementDetail({ params, searchParams }: {
+async function RequirementDetail({ params, searchParams }: {
   params: Promise<{ id: string }>; searchParams: Promise<{ err?: string }>;
 }) {
   const { id } = await params;
@@ -171,3 +172,5 @@ function StatusBadge({ status }: { status: string }) {
   if (status === 'CANCELLED') return <Badge tone="bad">Cancelled</Badge>;
   return <Badge tone="copper">Open</Badge>;
 }
+
+export default withTenantPage(RequirementDetail);

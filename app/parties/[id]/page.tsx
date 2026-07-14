@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHead, Tile, Badge, Pipeline, StatusBadge } from '@/components/ui';
@@ -6,7 +7,7 @@ import { BASIS_LABEL, dateShort, inr, inrFull, mt, perKg } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PartyPage({ params }: { params: Promise<{ id: string }> }) {
+async function PartyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const p = party(Number(id));
   if (!p) notFound();
@@ -128,3 +129,5 @@ export default async function PartyPage({ params }: { params: Promise<{ id: stri
     </>
   );
 }
+
+export default withTenantPage(PartyPage);

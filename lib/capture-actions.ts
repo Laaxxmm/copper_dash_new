@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { get, run } from './db';
@@ -13,7 +14,7 @@ const refresh = () => revalidatePath('/', 'layout');
 
 /** Paste a PI/PO email → parse, map to a supplier (domain/keyword/name) + product,
  *  also try an open enquiry, and stage for review. Never posts. */
-export async function captureEmail(fd: FormData) {
+async function _captureEmail(fd: FormData) {
   const rawText = str(fd, 'text');
   if (rawText.length < 15) redirect('/inbox?err=' + encodeURIComponent('Paste the PI or PO email text first.'));
   const parsed = parseDoc(rawText);
@@ -34,7 +35,7 @@ export async function captureEmail(fd: FormData) {
 /** Human confirms a staged capture → auto-populate:
  *  CANCEL → cancel the referenced PO (or matched enquiry); PI/PO → log the supplier's
  *  agreed quantity for the month (or book the matched enquiry). */
-export async function confirmCapture(fd: FormData) {
+async function _confirmCapture(fd: FormData) {
   const id = num(fd, 'capture_id');
   const c = get<{
     doc_type: string; status: string; reference_no: string | null; extracted_json: string;
@@ -70,14 +71,14 @@ export async function confirmCapture(fd: FormData) {
   redirect('/inbox');
 }
 
-export async function rejectCapture(fd: FormData) {
+async function _rejectCapture(fd: FormData) {
   run(`UPDATE email_captures SET status = 'REJECTED' WHERE id = ?`, num(fd, 'capture_id'));
   refresh();
   redirect('/inbox');
 }
 
 // ---------- customer side: capture a customer's PO ----------
-export async function captureCustomerEmail(fd: FormData) {
+async function _captureCustomerEmail(fd: FormData) {
   const rawText = str(fd, 'text');
   if (rawText.length < 15) redirect('/sales/inbox?err=' + encodeURIComponent('Paste the customer PO email text first.'));
   const parsed = parseDoc(rawText);
@@ -92,7 +93,7 @@ export async function captureCustomerEmail(fd: FormData) {
 }
 
 /** Confirm a customer PO → record it against their latest open PI (or cancel on a CANCEL doc). */
-export async function confirmCustomerCapture(fd: FormData) {
+async function _confirmCustomerCapture(fd: FormData) {
   const id = num(fd, 'capture_id');
   const c = get<{ doc_type: string; status: string; reference_no: string | null; matched_customer_id: number | null }>(
     `SELECT doc_type, status, reference_no, matched_customer_id FROM email_captures WHERE id = ?`, id);
@@ -117,9 +118,16 @@ export async function confirmCustomerCapture(fd: FormData) {
 }
 
 /** Pull unseen PI/PO from the configured Gmail mailbox into the review queue. */
-export async function checkMailNow() {
+async function _checkMailNow() {
   const { pollMailbox } = await import('./mailbox');
   const r = await pollMailbox();
   refresh();
   redirect('/inbox?msg=' + encodeURIComponent(r.message));
 }
+
+export const captureEmail = withTenant(_captureEmail);
+export const confirmCapture = withTenant(_confirmCapture);
+export const rejectCapture = withTenant(_rejectCapture);
+export const captureCustomerEmail = withTenant(_captureCustomerEmail);
+export const confirmCustomerCapture = withTenant(_confirmCustomerCapture);
+export const checkMailNow = withTenant(_checkMailNow);

@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 // Data entry: every form on /add posts to one of these actions.
 // Each action validates, writes, revalidates all pages, then sends the
 // user to the page where the new entry is visible.
@@ -30,7 +31,7 @@ function nextNo(prefix: 'PB' | 'SB' | 'CB'): string {
 }
 
 // ---------- new customer / supplier ----------
-export async function addParty(fd: FormData) {
+async function _addParty(fd: FormData) {
   const type = str(fd, 'type') === 'SUPPLIER' ? 'SUPPLIER' : str(fd, 'type') === 'CUSTOMER' ? 'CUSTOMER' : null;
   const name = str(fd, 'name');
   const city = str(fd, 'city') || null;
@@ -55,7 +56,7 @@ export async function addParty(fd: FormData) {
 }
 
 // ---------- daily price ----------
-export async function saveCsp(fd: FormData) {
+async function _saveCsp(fd: FormData) {
   const date = str(fd, 'date') || today();
   const price = num(fd, 'price');
   if (price < 100000 || price > 5000000) fail('price', 'Price looks wrong — enter ₹ per MT (e.g. 895000).');
@@ -66,7 +67,7 @@ export async function saveCsp(fd: FormData) {
 }
 
 // ---------- LME base (manual-first; westmetall feed only pre-fills, never auto-writes) ----------
-export async function saveLme(fd: FormData) {
+async function _saveLme(fd: FormData) {
   const date = str(fd, 'date') || today();
   const usd = num(fd, 'usd_mt');
   if (usd < 3000 || usd > 40000) fail('lme', 'LME looks wrong — enter US$ per tonne (e.g. 13250).');
@@ -77,7 +78,7 @@ export async function saveLme(fd: FormData) {
 }
 
 // ---------- supplier plan: manual L-rank + monthly target/agreed (per product) ----------
-export async function saveSupplierPlan(fd: FormData) {
+async function _saveSupplierPlan(fd: FormData) {
   const sid = num(fd, 'supplier_id');
   const pid = num(fd, 'product_id');
   const month = str(fd, 'month') || today().slice(0, 7);
@@ -95,7 +96,7 @@ export async function saveSupplierPlan(fd: FormData) {
 }
 
 // ---------- supplier payment terms (per product) + exchange basis (per supplier) ----------
-export async function saveSupplierTerms(fd: FormData) {
+async function _saveSupplierTerms(fd: FormData) {
   const sid = num(fd, 'supplier_id');
   const pid = num(fd, 'product_id');
   if (!sid || !pid) redirect('/suppliers');
@@ -118,7 +119,7 @@ export async function saveSupplierTerms(fd: FormData) {
 }
 
 // ---------- booking ----------
-export async function addBooking(fd: FormData) {
+async function _addBooking(fd: FormData) {
   const kind = str(fd, 'kind') === 'SALE' ? 'SALE' : 'PURCHASE';
   const partyId = num(fd, 'party_id');
   const qty = num(fd, 'qty');
@@ -172,7 +173,7 @@ function maybeComplete(bookingId: number) {
 }
 
 // ---------- price fixation ----------
-export async function addFixation(fd: FormData) {
+async function _addFixation(fd: FormData) {
   const bookingId = num(fd, 'booking_id');
   const qty = num(fd, 'qty');
   const rate = num(fd, 'rate');
@@ -195,7 +196,7 @@ export async function addFixation(fd: FormData) {
 }
 
 // ---------- truck dispatch (creates the bill automatically) ----------
-export async function addLifting(fd: FormData) {
+async function _addLifting(fd: FormData) {
   const bookingId = num(fd, 'booking_id');
   const qty = num(fd, 'qty');
   const date = str(fd, 'date') || today();
@@ -246,7 +247,7 @@ export async function addLifting(fd: FormData) {
 }
 
 // ---------- truck arrival / unloading ----------
-export async function updateTruck(fd: FormData) {
+async function _updateTruck(fd: FormData) {
   const liftingId = num(fd, 'lifting_id');
   const event = str(fd, 'event'); // ARRIVED | UNLOADED
   const date = str(fd, 'date') || today();
@@ -275,7 +276,7 @@ export async function updateTruck(fd: FormData) {
 }
 
 // ---------- payment ----------
-export async function addPayment(fd: FormData) {
+async function _addPayment(fd: FormData) {
   const invoiceId = num(fd, 'invoice_id');
   const amount = num(fd, 'amount');
   const date = str(fd, 'date') || today();
@@ -300,3 +301,14 @@ export async function addPayment(fd: FormData) {
   refresh();
   redirect('/money');
 }
+
+export const addParty = withTenant(_addParty);
+export const saveCsp = withTenant(_saveCsp);
+export const saveLme = withTenant(_saveLme);
+export const saveSupplierPlan = withTenant(_saveSupplierPlan);
+export const saveSupplierTerms = withTenant(_saveSupplierTerms);
+export const addBooking = withTenant(_addBooking);
+export const addFixation = withTenant(_addFixation);
+export const addLifting = withTenant(_addLifting);
+export const updateTruck = withTenant(_updateTruck);
+export const addPayment = withTenant(_addPayment);

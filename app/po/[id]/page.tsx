@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import PrintButton from '@/components/PrintButton';
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
 // Full Indian-grouped rupees with paise (a PO is a legal document — show the paise).
 const rs = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default async function POPage({ params }: { params: Promise<{ id: string }> }) {
+async function POPage({ params }: { params: Promise<{ id: string }> }) {
   const po = purchaseOrder(Number((await params).id));
   if (!po) notFound();
   const co = companyProfile();
@@ -96,3 +97,5 @@ export default async function POPage({ params }: { params: Promise<{ id: string 
     </>
   );
 }
+
+export default withTenantPage(POPage);

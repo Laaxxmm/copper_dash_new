@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead, Badge } from '@/components/ui';
 import { pendingCustomerCaptures, type ParsedDoc } from '@/lib/capture';
@@ -6,7 +7,7 @@ import { mt } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SalesInboxPage({ searchParams }: { searchParams: Promise<{ err?: string }> }) {
+async function SalesInboxPage({ searchParams }: { searchParams: Promise<{ err?: string }> }) {
   const { err } = await searchParams;
   const rows = pendingCustomerCaptures();
 
@@ -57,3 +58,5 @@ export default async function SalesInboxPage({ searchParams }: { searchParams: P
     </>
   );
 }
+
+export default withTenantPage(SalesInboxPage);

@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 // Issue a customer PI: computes the selling ₹/kg from the product's template
 // (buy cost from the linked purchase lot + fabrication), creates a SALE booking
 // linked to that purchase (so margin + basis-mismatch fall out later), prices it,
@@ -18,7 +19,7 @@ import { supplierBoard } from './pricing';
 const num = (fd: FormData, k: string) => Number(fd.get(k) ?? 0);
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
 
-export async function createSalePI(fd: FormData) {
+async function _createSalePI(fd: FormData) {
   const customer = num(fd, 'customer_id');
   const spId = num(fd, 'sale_product_id');
   const qty = num(fd, 'qty_mt');
@@ -73,7 +74,7 @@ export async function createSalePI(fd: FormData) {
   redirect(`/sales/pi/${id}`);
 }
 
-export async function cancelSalePI(fd: FormData) {
+async function _cancelSalePI(fd: FormData) {
   const id = num(fd, 'pi_id');
   const pi = get<{ booking_id: number | null }>(`SELECT booking_id FROM sales_pi WHERE id = ? AND status = 'SENT'`, id);
   if (pi) {
@@ -83,3 +84,6 @@ export async function cancelSalePI(fd: FormData) {
   revalidatePath('/', 'layout');
   redirect(`/sales/pi/${id}`);
 }
+
+export const createSalePI = withTenant(_createSalePI);
+export const cancelSalePI = withTenant(_cancelSalePI);

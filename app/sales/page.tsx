@@ -1,3 +1,4 @@
+import { withTenantPage } from '@/lib/tenant-resolve';
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import CollectionsHeatmap from '@/components/CollectionsHeatmap';
@@ -6,7 +7,7 @@ import { inr } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default function SalesPage() {
+function SalesPage() {
   const customers = partySummaries('CUSTOMER');
   const ageing = collectionsAgeing();
   const totalOut = customers.reduce((s, c) => s + c.outstanding, 0);
@@ -51,3 +52,5 @@ export default function SalesPage() {
     </>
   );
 }
+
+export default withTenantPage(SalesPage);

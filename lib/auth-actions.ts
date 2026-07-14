@@ -1,12 +1,13 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE, SESSION_MAX_AGE, signSession } from './auth';
 import { userByUsername, recordLoginAttempt, touchLastLogin, recentFailures } from './control-db';
 import { verifyPassword } from './password';
 
-export async function login(formData: FormData) {
+async function _login(formData: FormData) {
   const user = String(formData.get('user') ?? '').trim();
   const password = String(formData.get('password') ?? '');
   const next = String(formData.get('next') ?? '/') || '/';
@@ -32,8 +33,11 @@ export async function login(formData: FormData) {
   redirect(next.startsWith('/') ? next : '/');
 }
 
-export async function logout() {
+async function _logout() {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
   redirect('/login');
 }
+
+export const login = withTenant(_login);
+export const logout = withTenant(_logout);

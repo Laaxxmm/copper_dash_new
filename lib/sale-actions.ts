@@ -1,5 +1,6 @@
 'use server';
 
+import { withTenant } from '@/lib/tenant-resolve';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { get, run } from './db';
@@ -14,7 +15,7 @@ const KINDS: LineKind[] = ['BUY_COST', 'FABRICATION', 'FIXED', 'PERCENT'];
 const OPS: LineOp[] = ['ADD', 'SUB', 'MUL', 'DIV', 'AVG'];
 
 /** Create or update a reusable pricing template + its ordered lines (posted as JSON). */
-export async function saveTemplate(fd: FormData) {
+async function _saveTemplate(fd: FormData) {
   const id = num(fd, 'template_id');
   const name = str(fd, 'name') || 'Untitled template';
   const notes = str(fd, 'notes') || null;
@@ -39,7 +40,7 @@ export async function saveTemplate(fd: FormData) {
   redirect('/sales/pricing');
 }
 
-export async function deleteTemplate(fd: FormData) {
+async function _deleteTemplate(fd: FormData) {
   const id = num(fd, 'template_id');
   if (id && !get(`SELECT id FROM sale_products WHERE template_id = ? AND active = 1`, id)) {
     run(`DELETE FROM price_lines WHERE template_id = ?`, id);
@@ -50,7 +51,7 @@ export async function deleteTemplate(fd: FormData) {
 }
 
 /** Add a product a customer buys, priced by a template + its own fabrication cost. */
-export async function saveSaleProduct(fd: FormData) {
+async function _saveSaleProduct(fd: FormData) {
   const customer = num(fd, 'customer_id');
   const name = str(fd, 'name');
   if (!customer || name.length < 2) redirect('/sales/pricing?err=' + encodeURIComponent('Pick a customer and name the product.'));
@@ -62,8 +63,13 @@ export async function saveSaleProduct(fd: FormData) {
   redirect('/sales/pricing');
 }
 
-export async function deleteSaleProduct(fd: FormData) {
+async function _deleteSaleProduct(fd: FormData) {
   run(`UPDATE sale_products SET active = 0 WHERE id = ?`, num(fd, 'product_id'));
   refresh();
   redirect('/sales/pricing');
 }
+
+export const saveTemplate = withTenant(_saveTemplate);
+export const deleteTemplate = withTenant(_deleteTemplate);
+export const saveSaleProduct = withTenant(_saveSaleProduct);
+export const deleteSaleProduct = withTenant(_deleteSaleProduct);
