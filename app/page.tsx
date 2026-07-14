@@ -3,7 +3,7 @@ import { PageHead, Tile } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
 import PriorityHero from '@/components/PriorityHero';
 import SupplierCarousel from '@/components/SupplierCarousel';
-import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard, alerts, basisAlerts, profitability, customerProfitability, collectionsSummary } from '@/lib/queries';
+import { monthlyPlan, costOfPurchase, unpricedExposure, alerts, basisAlerts, profitability, customerProfitability, collectionsSummary } from '@/lib/queries';
 import { copperNews, timeAgo, liveLme } from '@/lib/market';
 import { lmeStrip } from '@/lib/pricing';
 import { mt, inr, monthLabel, today } from '@/lib/format';
@@ -21,7 +21,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const plan = monthlyPlan(month);
   const cost = costOfPurchase(month);
   const exposureQty = unpricedExposure().reduce((s, e) => s + e.qty_open, 0);
-  const scores = supplierScorecard();
 
   const totTarget = plan.reduce((s, r) => s + r.target_mt, 0);
   const totLifted = plan.reduce((s, r) => s + r.lifted_mt, 0);
@@ -160,34 +159,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       )}
 
-      <div className="section-gap">
-        <div className="section-title">Which supplier is better</div>
-        <div className="card card-pad">
-          {scores.length === 0 ? (
-            <p className="muted">No supplier deals matched yet.</p>
-          ) : (
-            <div className="table-wrap">
-              <table className="data">
-                <thead>
-                  <tr><th>Supplier</th><th>Margin ₹/kg</th><th>Volume</th><th>On-time</th><th>Transit</th><th>Weight cut</th></tr>
-                </thead>
-                <tbody>
-                  {scores.map((s) => (
-                    <tr key={s.id}>
-                      <td><Link href={`/suppliers/${s.id}`} className="cell-main" style={{ color: 'var(--copper-text)' }}>{s.name}</Link></td>
-                      <td>{s.margin_mt != null ? `₹${(s.margin_mt / 1000).toFixed(1)}` : '—'}</td>
-                      <td>{mt(Math.round(s.delivered_mt * 10) / 10)}</td>
-                      <td>{s.ontime_pct != null ? `${s.ontime_pct}%` : '—'}</td>
-                      <td>{s.avg_transit_days != null ? `${s.avg_transit_days.toFixed(1)} d` : '—'}</td>
-                      <td>{s.short_kg > 0 ? `${Math.round(s.short_kg)} kg` : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
-import { productTargets } from '@/lib/queries';
+import SupplierCompare from '@/components/SupplierCompare';
+import { productTargets, supplierScorecard } from '@/lib/queries';
 import { products, supplierBoard } from '@/lib/pricing';
 import { saveSupplierPlan } from '@/lib/actions';
 import { mt, today } from '@/lib/format';
@@ -77,8 +78,15 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
         })}
       </div>
 
+      <div className="section-gap">
+        <div className="section-title">Which supplier is better</div>
+        <div className="card">
+          <SupplierCompare scores={supplierScorecard()} />
+        </div>
+      </div>
+
       <div className="help">
-        <b>How this works:</b> set the <b>L-rank</b> you prefer to buy from (L1 first), then this month&apos;s <b>target</b> for {product?.description ?? 'the product'}. Phone the supplier, and when he commits a quantity put it in <b>agreed</b>. <b>Lifted</b> fills in automatically as material moves.
+        <b>How this works:</b> set the <b>L-rank</b> you prefer to buy from (L1 first), then this month&apos;s <b>target</b> for {product?.description ?? 'the product'}. Phone the supplier, and when he commits a quantity put it in <b>agreed</b>. <b>Lifted</b> fills in automatically as material moves. The comparison ranks by realised margin, on-time delivery, transit and weight cut.
       </div>
     </>
   );

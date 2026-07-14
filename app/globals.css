@@ -827,3 +827,6 @@ a.btn, a.btn-sm { color: #fff; }
 
 @media (max-width: 900px) { .sc2 { flex-basis: calc((100% - 14px) / 2); } }
 @media (max-width: 620px) { .sc2 { flex-basis: 84%; } }
+
+/* ---------- Redesign R3 — Purchase comparison graded pill ---------- */
+.gpill { display: inline-block; font-weight: 700; font-size: 12.5px; padding: 3px 11px; border-radius: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
