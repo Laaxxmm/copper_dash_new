@@ -33,6 +33,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <label>Month <input type="month" name="month" defaultValue={month} /></label>
         <button className="btn-sm" type="submit">View</button>
         <span className="month-now">{monthLabel(month)}</span>
+        <Link href="/po/new" className="btn-sm" style={{ marginLeft: 'auto' }}>Send a PO →</Link>
       </form>
 
       <Link href="/news" className="market-strip card">

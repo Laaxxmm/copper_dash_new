@@ -5,7 +5,8 @@ import type { DatabaseSync } from 'node:sqlite';
 
 // Cleared on "erase all"; children first for FK safety. The `products` catalog
 // (wire/rod reference data) is intentionally NOT cleared.
-const TABLES = ['allocations', 'requirements', 'payments', 'invoices', 'liftings', 'price_fixations',
+const TABLES = ['purchase_orders', 'supplier_targets', 'email_captures', 'allocations', 'requirements',
+  'payments', 'invoices', 'liftings', 'price_fixations',
   'supplier_terms', 'bookings', 'fx_rates', 'lme_prices', 'csp_prices', 'parties'];
 
 /** Remove every row (children first for FK safety) and reset id counters. */
@@ -371,4 +372,21 @@ export function seedDemo(db: DatabaseSync) {
   for (const [si, pid, tgt, agr] of targets) insTarget.run(supplierIds[si], pid, curMonth, tgt, agr);
   const upRank = db.prepare(`UPDATE parties SET manual_rank = ? WHERE id = ?`);
   supplierIds.forEach((id, i) => upRank.run(i + 1, id));
+
+  // ---------- Revamp demo: a few purchase orders (committed cost of purchase) ----------
+  const insPO = db.prepare(
+    `INSERT INTO purchase_orders (po_no, supplier_id, product_id, month, qty_mt, rate_inr_kg,
+       base_amount, tax_amount, gross_amount, lme_usd, fx_rate, basis, status, created_date)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  let poSeq = 0;
+  const makePO = (sid: number, pid: number, qty: number, status = 'SENT') => {
+    const rate = rateOf(termOf(sid, pid));
+    const base = round(rate * qty * 1000 * 100) / 100;
+    const tax = round(base * 0.18 * 100) / 100;
+    insPO.run(`PO-${String(++poSeq).padStart(3, '0')}`, sid, pid, curMonth, qty, rate, base, tax,
+      round((base + tax) * 100) / 100, round(lme), rbi, 'DAY', status, TODAY);
+  };
+  makePO(supplierIds[0], w160, 20); makePO(supplierIds[0], rod8, 8);
+  makePO(supplierIds[2], w160, 12); makePO(supplierIds[3], w160, 10);
+  makePO(supplierIds[4], rod8, 8, 'CANCELLED');
 }

@@ -613,6 +613,23 @@ export function supplierCostByBasis(id: number) {
      GROUP BY b.pricing_basis ORDER BY qty DESC`, id);
 }
 
+export type PurchaseOrderFull = {
+  id: number; po_no: string; supplier_id: number; supplier_name: string; supplier_city: string | null;
+  supplier_gstin: string | null; supplier_email: string | null; product_desc: string | null;
+  qty_mt: number; rate_inr_kg: number; base_amount: number; tax_amount: number; gross_amount: number;
+  lme_usd: number | null; fx_rate: number | null; basis: string | null; status: string;
+  created_date: string; cancelled_date: string | null;
+};
+export function purchaseOrder(id: number): PurchaseOrderFull | undefined {
+  return get<PurchaseOrderFull>(
+    `SELECT po.id, po.po_no, po.supplier_id, s.name supplier_name, s.city supplier_city,
+            s.gstin supplier_gstin, s.email supplier_email, pr.description product_desc,
+            po.qty_mt, po.rate_inr_kg, po.base_amount, po.tax_amount, po.gross_amount,
+            po.lme_usd, po.fx_rate, po.basis, po.status, po.created_date, po.cancelled_date
+     FROM purchase_orders po JOIN parties s ON s.id = po.supplier_id
+     LEFT JOIN products pr ON pr.id = po.product_id WHERE po.id = ?`, id);
+}
+
 export function supplierPurchaseOrders(id: number) {
   return all<{ po_no: string; qty_mt: number; rate_inr_kg: number; gross_amount: number; status: string; created_date: string }>(
     `SELECT po_no, qty_mt, rate_inr_kg, gross_amount, status, created_date

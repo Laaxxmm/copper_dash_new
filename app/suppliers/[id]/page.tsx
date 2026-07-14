@@ -48,8 +48,8 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
           <span className="sup-contact">{sup.phone ?? 'no phone'}{sup.email ? ` · ${sup.email}` : ''} · {sup.credit_days === 0 ? 'advance payment' : `${sup.credit_days} days credit`}</span>
         </div>
         <div className="sup-actions">
-          {sup.phone ? <a href={`tel:${sup.phone.replace(/\s/g, '')}`} className="btn-order">Call to confirm</a> : null}
-          {sup.email ? <a href={`mailto:${sup.email}`} className="btn-order outline">Email</a> : null}
+          {sup.phone ? <a href={`tel:${sup.phone.replace(/\s/g, '')}`} className="btn-order outline">Call to confirm</a> : null}
+          <Link href={`/po/new?supplier=${id}${terms[0] ? `&product=${terms[0].product_id}` : ''}`} className="btn-order">Send PO</Link>
           <Link href="/suppliers" className="btn-order outline">All suppliers</Link>
         </div>
       </div>
