@@ -2,19 +2,27 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { SESSION_COOKIE, SESSION_MAX_AGE, checkCredentials, signSession } from './auth';
+import { SESSION_COOKIE, SESSION_MAX_AGE, signSession } from './auth';
+import { userByUsername, recordLoginAttempt, touchLastLogin, recentFailures } from './control-db';
+import { verifyPassword } from './password';
 
 export async function login(formData: FormData) {
   const user = String(formData.get('user') ?? '').trim();
   const password = String(formData.get('password') ?? '');
   const next = String(formData.get('next') ?? '/') || '/';
+  const fail = () => redirect(`/login?err=1${next && next !== '/' ? `&next=${encodeURIComponent(next)}` : ''}`);
 
-  if (!checkCredentials(user, password)) {
-    redirect(`/login?err=1${next && next !== '/' ? `&next=${encodeURIComponent(next)}` : ''}`);
-  }
+  // Simple lockout: too many recent failures for this username.
+  if (recentFailures(user) >= 8) redirect('/login?err=locked');
 
+  const u = userByUsername(user);
+  const ok = !!u && u.status === 'active' && verifyPassword(password, u.password_hash, u.salt);
+  recordLoginAttempt(user, ok);
+  if (!ok || !u) fail();
+
+  touchLastLogin(u!.id);
   const store = await cookies();
-  store.set(SESSION_COOKIE, await signSession(user), {
+  store.set(SESSION_COOKIE, await signSession(String(u!.id)), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

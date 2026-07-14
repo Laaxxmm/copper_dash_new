@@ -32,8 +32,14 @@ const LINKS = [
   },
 ];
 
-export default function Nav() {
+const ADMIN_LINK = {
+  href: '/admin', label: 'Admin', match: (p: string) => p.startsWith('/admin'),
+  icon: <svg {...S}><path d="M12 3l7 4v5c0 4.4-3 7.5-7 9-4-1.5-7-4.6-7-9V7z" /><path d="M9.5 12l2 2 3.5-4" /></svg>,
+} as const;
+
+export default function Nav({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
+  const links = admin ? [...LINKS, ADMIN_LINK] : LINKS;
   return (
     <>
       <Link href="/add" className="nav-add" title="Add entry">
@@ -41,7 +47,7 @@ export default function Nav() {
         <span className="nav-label">Add entry</span>
       </Link>
       <nav>
-        {LINKS.map((l) => (
+        {links.map((l) => (
           <Link key={l.href} href={l.href} className={`nav-link${l.match(pathname) ? ' active' : ''}`} title={l.label}>
             {l.icon}
             <span className="nav-label">{l.label}</span>

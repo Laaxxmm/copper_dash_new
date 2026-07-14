@@ -7,6 +7,7 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import CollectionsBanner from '@/components/CollectionsBanner';
 import { companyProfile, getSetting } from '@/lib/company';
 import { collectionsSummary } from '@/lib/queries';
+import { currentUser } from '@/lib/current-user';
 import { dateLong, inr, today } from '@/lib/format';
 
 const display = Newsreader({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-display' });
@@ -18,9 +19,10 @@ export const metadata: Metadata = {
   description: 'Copper procurement — suppliers, targets, orders and cost, in one place.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const co = companyProfile();
   const collect = collectionsSummary();
+  const me = await currentUser();
   const accent = getSetting('ui:accent', 'copper');
   const density = getSetting('ui:density', 'comfortable');
   const bannerOn = getSetting('ui:banner', 'on') !== 'off';
@@ -28,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-accent={accent} data-density={density}>
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         <div className="frame">
-          <Sidebar name={co.name} logo={co.logo} city={co.city || 'Copper procurement'} />
+          <Sidebar name={co.name} logo={co.logo} city={co.city || 'Copper procurement'} admin={me?.role === 'SUPER_ADMIN'} />
           <main className="main">
             <div className="topbar">
               <Breadcrumbs />
