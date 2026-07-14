@@ -840,3 +840,22 @@ a.btn, a.btn-sm { color: #fff; }
 .heatmap tbody td:first-child { background: var(--wash-2); }
 .hm-cell { transition: transform 0.12s ease; cursor: default; }
 .hm-cell:hover { transform: scale(1.06); position: relative; z-index: 1; box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+
+/* ---------- Redesign R5 — Finance profit bars ---------- */
+.pbar-track { height: 24px; border-radius: 8px; overflow: hidden; display: flex; background: var(--line-soft); }
+.pbar-net { background: var(--good); }
+.pbar-oh { background: var(--bad); }
+.pbar-legend { display: flex; gap: 22px; margin-top: 14px; font-size: 13.5px; flex-wrap: wrap; color: var(--ink-2); }
+.pbar-legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.pdot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+.pdot.net { background: var(--good); }
+.pdot.oh { background: var(--bad); }
+
+.cbars { display: flex; flex-direction: column; gap: 11px; }
+.cbar-row { display: grid; grid-template-columns: 128px 1fr auto; align-items: center; gap: 12px; }
+.cbar-name { font-size: 13.5px; font-weight: 600; color: var(--copper-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+.cbar-name:hover { color: var(--link-hover); }
+.cbar-track { height: 14px; background: var(--line-soft); border-radius: 7px; overflow: hidden; }
+.cbar-fill { display: block; height: 100%; background: var(--good); border-radius: 7px; transition: width 0.3s ease; }
+.cbar-fill.loss { background: var(--bad); }
+.cbar-val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }

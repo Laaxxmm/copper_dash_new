@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
+import ProfitBar from '@/components/ProfitBar';
 import { expensesList, profitability, customerProfitability } from '@/lib/queries';
 import { addExpense, deleteExpense } from '@/lib/finance-actions';
 import { inr, monthLabel, today } from '@/lib/format';
@@ -31,6 +32,13 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         <div className="card tile"><div className="t-label">Gross margin</div><div className="t-value">{inr(pnl.grossMargin)}</div><div className="t-note">{pnl.deals} deals this month</div></div>
         <div className="card tile"><div className="t-label">Overheads</div><div className="t-value">{inr(pnl.overheads)}</div><div className="t-note">salary, rent, power…</div></div>
         <div className={`card tile accent${pnl.net < 0 ? ' t-bad' : ' t-good'}`}><div className="t-label">Net profit</div><div className="t-value">{inr(pnl.net)}</div><div className="t-note">gross margin − overheads</div></div>
+      </div>
+
+      <div className="card card-pad section-gap">
+        <div className="card-title">Profit build-up — {monthLabel(month)}</div>
+        {pnl.grossMargin === 0 && pnl.overheads === 0
+          ? <p className="muted">No deals or overheads this month yet.</p>
+          : <ProfitBar gross={pnl.grossMargin} overheads={pnl.overheads} net={pnl.net} />}
       </div>
 
       <div className="grid two-col section-gap" style={{ alignItems: 'start' }}>
@@ -75,27 +83,28 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
         <div>
           <div className="section-title">Profit by customer — {monthLabel(month)}</div>
-          <div className="card">
+          <div className="card card-pad">
             {perCustomer.length === 0 ? (
-              <p className="card-pad muted">No matched deals this month.</p>
+              <p className="muted">No matched deals this month.</p>
             ) : (
-              <div className="table-wrap">
-                <table className="data compact">
-                  <thead><tr><th>Customer</th><th className="num">Margin</th><th className="num">Overhead</th><th className="num">Net</th></tr></thead>
-                  <tbody>
-                    {perCustomer.map((c) => (
-                      <tr key={c.customer_id}>
-                        <td><Link href={`/sales/customers/${c.customer_id}`} className="cell-main" style={{ color: 'var(--copper-text)' }}>{c.customer}</Link></td>
-                        <td className="num">{inr(c.margin)}</td>
-                        <td className="num muted">−{inr(c.overhead_share)}</td>
-                        <td className="num" style={{ color: c.net < 0 ? 'var(--bad)' : 'var(--good)', fontWeight: 700 }}>{inr(c.net)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div className="cbars">
+                  {(() => {
+                    const maxNet = Math.max(1, ...perCustomer.map((c) => Math.abs(c.net)));
+                    return perCustomer.map((c) => (
+                      <div key={c.customer_id} className="cbar-row">
+                        <Link href={`/sales/customers/${c.customer_id}`} className="cbar-name">{c.customer}</Link>
+                        <span className="cbar-track">
+                          <span className={`cbar-fill ${c.net < 0 ? 'loss' : ''}`} style={{ width: `${(Math.abs(c.net) / maxNet) * 100}%` }} />
+                        </span>
+                        <span className="cbar-val" style={{ color: c.net < 0 ? 'var(--bad)' : 'var(--good)' }}>{inr(c.net)}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+                <p className="chart-note" style={{ marginTop: 12 }}>Net after each customer&apos;s revenue-share of overheads. Bars scale to the biggest earner.</p>
+              </>
             )}
-            <p className="chart-note" style={{ padding: '0 16px 14px' }}>Overheads are shared across customers by their revenue this month.</p>
           </div>
         </div>
       </div>
