@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { destroyTestDb, seedFixtures, useTestDb, type Fixtures } from './helpers';
 import {
-  alerts, bookings, bookingsSummary, cspToday, customerProfit, dealMargins, dnplDeadline, invoices,
+  alerts, bookings, bookingsSummary, cspToday, customerProfit, dealMargins, dnplDeadline, invoices, orderList,
   moneySummary, monthlyTrade, partyLedger, partySummaries, receivableAging,
   supplierScorecard, truckSummary, trucks, typicalSellRate, unpricedExposure, whereToBuy,
 } from '@/lib/queries';
@@ -171,6 +171,20 @@ describe('alerts', () => {
     const titles = alerts().map((a) => a.title);
     expect(titles.some((t) => t.includes('Customer X payment late by 65 days'))).toBe(true);
     expect(titles.some((t) => t.includes('SB-002: 3 MT lifted but price not fixed'))).toBe(true);
+  });
+});
+
+describe('orderList (orders tracker filters)', () => {
+  it('returns buy-side orders only and honours supplier/status/date filters', () => {
+    const rows = orderList({});
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((o) => o.booking_no.startsWith('PB'))).toBe(true); // purchases only
+    expect(orderList({ supplier: fx.s1 }).every((o) => o.supplier === 'Supplier A')).toBe(true);
+    expect(orderList({ status: 'OPEN' }).every((o) => o.status === 'OPEN')).toBe(true);
+    expect(orderList({ from: '2099-01-01' }).length).toBe(0); // nothing that far ahead
+    // newest first
+    const dates = rows.map((o) => o.booking_date);
+    expect([...dates].sort((a, b) => (a < b ? 1 : -1))).toEqual(dates);
   });
 });
 

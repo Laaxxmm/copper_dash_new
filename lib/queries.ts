@@ -529,6 +529,38 @@ export function monthlyPlan(month: string): SupplierMonthRow[] {
      ORDER BY (p.manual_rank IS NULL), p.manual_rank, p.name`, month, month);
 }
 
+// ---------- orders tracker (Phase D) ----------
+export type OrderFilters = { from?: string; to?: string; product?: string; supplier?: number; status?: string };
+export type OrderRow = {
+  id: number; booking_no: string; booking_date: string; supplier_id: number; supplier: string;
+  product_desc: string | null; product_type: string | null; qty_mt: number; pricing_basis: string;
+  fixed_qty: number; avg_rate: number | null; lifted_qty: number; billed: number; status: string;
+};
+
+/** Buy-side orders, newest first, filtered by date range / product (type or id) / supplier / status.
+ *  Shared by the /orders page and the Excel download so both always agree. */
+export function orderList(flt: OrderFilters): OrderRow[] {
+  const where: string[] = [`b.kind = 'PURCHASE'`];
+  const p: (string | number)[] = [];
+  if (flt.from) { where.push(`b.booking_date >= ?`); p.push(flt.from); }
+  if (flt.to) { where.push(`b.booking_date <= ?`); p.push(flt.to); }
+  if (flt.status === 'OPEN' || flt.status === 'COMPLETED' || flt.status === 'CANCELLED') { where.push(`b.status = ?`); p.push(flt.status); }
+  if (flt.supplier) { where.push(`b.party_id = ?`); p.push(flt.supplier); }
+  if (flt.product === 'WIRE' || flt.product === 'ROD') { where.push(`pr.type = ?`); p.push(flt.product); }
+  else if (flt.product && Number(flt.product)) { where.push(`b.product_id = ?`); p.push(Number(flt.product)); }
+  return all<OrderRow>(
+    `SELECT b.id, b.booking_no, b.booking_date, p.id supplier_id, p.name supplier,
+            pr.description product_desc, pr.type product_type, b.qty_mt, b.pricing_basis, b.status,
+            IFNULL(f.q, 0) fixed_qty, f.rate avg_rate, IFNULL(l.q, 0) lifted_qty, IFNULL(i.billed, 0) billed
+     FROM bookings b JOIN parties p ON p.id = b.party_id
+     LEFT JOIN products pr ON pr.id = b.product_id
+     LEFT JOIN ${FIX_AGG} f ON f.booking_id = b.id
+     LEFT JOIN ${LIFT_AGG} l ON l.booking_id = b.id
+     LEFT JOIN (SELECT booking_id, SUM(total_amount) billed FROM invoices GROUP BY booking_id) i ON i.booking_id = b.id
+     WHERE ${where.join(' AND ')}
+     ORDER BY b.booking_date DESC, b.id DESC`, ...p);
+}
+
 // ---------- supplier detail page (Phase C) ----------
 export type SupplierDetail = {
   id: number; name: string; city: string | null; phone: string | null; email: string | null;

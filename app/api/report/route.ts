@@ -3,6 +3,7 @@
 import { NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
 import { all, get } from '@/lib/db';
+import { orderList } from '@/lib/queries';
 import { BASIS_LABEL, TRUCK_LABEL } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -136,6 +137,26 @@ function profitRows(from: string, to: string): Row[] {
   }));
 }
 
+function ordersRows(sp: URLSearchParams): Row[] {
+  return orderList({
+    from: sp.get('from') || undefined, to: sp.get('to') || undefined,
+    product: sp.get('product') || undefined, supplier: Number(sp.get('supplier')) || undefined,
+    status: sp.get('status') || undefined,
+  }).map((r) => ({
+    'Order No': r.booking_no,
+    'Date': r.booking_date,
+    'Supplier': r.supplier,
+    'Product': r.product_desc,
+    'Quantity (MT)': r.qty_mt,
+    'Price Basis': BASIS_LABEL[r.pricing_basis] ?? r.pricing_basis,
+    'Priced Qty (MT)': r.fixed_qty,
+    'Avg Rate (₹/MT)': r.avg_rate != null ? Math.round(r.avg_rate) : null,
+    'Lifted Qty (MT)': r.lifted_qty,
+    'Billed (₹, with GST)': r.billed,
+    'Status': r.status,
+  }));
+}
+
 function ledgerRows(partyId: number, from: string, to: string): Row[] {
   let balance = 0;
   return all(
@@ -180,7 +201,8 @@ export async function GET(req: NextRequest) {
   const wb = XLSX.utils.book_new();
   let filename = `copperbook-${type}-${from}-to-${to}.xlsx`;
 
-  if (type === 'bookings') sheet(wb, 'Bookings', bookingsRows(from, to));
+  if (type === 'orders') { sheet(wb, 'Orders', ordersRows(sp)); filename = `copperbook-orders-${from}-to-${to}.xlsx`; }
+  else if (type === 'bookings') sheet(wb, 'Bookings', bookingsRows(from, to));
   else if (type === 'bills') sheet(wb, 'Bills', billsRows(from, to));
   else if (type === 'payments') sheet(wb, 'Payments', paymentsRows(from, to));
   else if (type === 'trucks') sheet(wb, 'Trucks', trucksRows(from, to));
