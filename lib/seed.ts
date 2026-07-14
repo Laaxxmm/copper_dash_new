@@ -426,4 +426,35 @@ export function seedDemo(db: DatabaseSync) {
   const insExp = db.prepare(`INSERT INTO expenses (month, category, amount, notes, created_date) VALUES (?,?,?,?,?)`);
   const overheads: [string, number][] = [['Salary', 60000], ['Rent', 25000], ['Power', 9000], ['Transport', 12000], ['Office', 6000]];
   for (const [cat, amt] of overheads) insExp.run(curMonth, cat, amt, null, TODAY);
+
+  // ---------- Mailbox demo: unread PI/PO waiting in the inboxes ----------
+  // extracted_json mirrors parseDoc's shape (seed stays dependency-free, so it's
+  // hand-built here); confirming one posts to the real tables → shows on the dashboard.
+  const insCap = db.prepare(`INSERT INTO email_captures
+    (received_at, doc_type, reference_no, matched_supplier_id, matched_customer_id, matched_product_id, extracted_json, status, raw_ref)
+    VALUES (?,?,?,?,?,?,?,?,?)`);
+  type Parsed = Record<string, unknown>;
+  const parsed = (o: Parsed) => JSON.stringify({
+    doc_type: 'UNKNOWN', reference_no: null, qty_mt: null, lme_usd_mt: null, premium_usd_mt: null,
+    transaction_usd_mt: null, factor_pct: null, exchange_rate: null, handling_inr_mt: null,
+    stated_total: null, computed_rate_inr_kg: null, computed_total: null, mismatch: false, ...o,
+  });
+
+  // Supplier PI (clean) — Ravindra, 1.60mm wire, 6 MT. Confirm → +6 MT agreed for the month.
+  insCap.run(TODAY, 'PI', 'RCM-4471', supplierIds[0], null, w160,
+    parsed({ doc_type: 'PI', reference_no: 'RCM-4471', qty_mt: 6, lme_usd_mt: 13460, premium_usd_mt: 198, transaction_usd_mt: 10, factor_pct: 3.75, exchange_rate: 89.01, handling_inr_mt: 6200, computed_rate_inr_kg: 1268.41, computed_total: 8980342 }),
+    'PENDING',
+    'Ravindra Copper Mills — PROFORMA INVOICE No: RCM-4471  Date: Jul 11, 2026\nFrom: sales@ravindra.com  To: AURALIS COPPER WORKS (P) LTD, Coimbatore\n1.60 MM EC CU WIRE FOR ELECTRICAL PURPOSE  6,000 KG  @ Provisional Price\nLME Price USD 13460.00 Per 1000 KG + Premium USD 198.00 + Transaction USD 10.00 * Exchange @ 89.01 * Factor 3.75% + Handling INR 6200.00 Per 1000 KG\nGST 18%  Payment: 100% advance');
+
+  // Supplier PI (amount mismatch) — Sunfield, 8mm rod. The printed total doesn't add up.
+  insCap.run(TODAY, 'PI', 'SM-2231', supplierIds[1], null, rod8,
+    parsed({ doc_type: 'PI', reference_no: 'SM-2231', qty_mt: 4, lme_usd_mt: 13460, premium_usd_mt: 205, transaction_usd_mt: 10, factor_pct: 5.5, exchange_rate: 89.01, handling_inr_mt: 5900, stated_total: 4800000, computed_rate_inr_kg: 1290.26, computed_total: 6090027, mismatch: true }),
+    'MISMATCH',
+    'Sunfield Metals — PROFORMA INVOICE No: SM-2231  from sales@sunfield.com\n8 MM CC COPPER ROD  4,000 KG  Provisional\nLME USD 13460 + Premium USD 205 + Transaction USD 10 * Exchange @ 89.01 * Factor 5.5% + Handling INR 5900\nGST 18%  Total Net Value : 4800000.00');
+
+  // Customer PO — Trinetra confirms 5 MT against our PI.
+  insCap.run(TODAY, 'PO', 'TW-0912', null, customerIds[0], null,
+    parsed({ doc_type: 'PO', reference_no: 'TW-0912', qty_mt: 5 }),
+    'PENDING',
+    'Trinetra Windings — PURCHASE ORDER No: TW-0912  from purchase@trinetra.com\nTo: AURALIS COPPER WORKS (P) LTD\nWe confirm purchase of 5 MT of 1.60 mm EC CU wire against your proforma. Delivery immediate. Payment 45 days.');
 }
