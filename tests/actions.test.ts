@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { addBooking, addFixation, addLifting, addParty, addPayment, saveCsp, saveLme, saveSupplierPlan, updateTruck } from '@/lib/actions';
+import { addBooking, addFixation, addLifting, addParty, addPayment, saveCsp, saveLme, saveSupplierPlan, saveSupplierTerms, updateTruck } from '@/lib/actions';
 import { all, get, run } from '@/lib/db';
 
 const fd = (fields: Record<string, string | number>) => {
@@ -197,5 +197,24 @@ describe('saveSupplierPlan', () => {
     expect(get(`SELECT manual_rank FROM parties WHERE id=?`, sup)).toEqual({ manual_rank: null });
     expect(all(`SELECT target_mt FROM supplier_targets WHERE supplier_id=? AND product_id=? AND month='2026-07'`, sup, pid))
       .toEqual([{ target_mt: 40 }]);
+  });
+});
+
+describe('saveSupplierTerms', () => {
+  it('upserts per-product terms and the supplier exchange basis, clamping bad values', async () => {
+    const pid = get<{ id: number }>(`SELECT id FROM products LIMIT 1`)!.id;
+    const sup = get<{ id: number }>(`SELECT id FROM parties WHERE type='SUPPLIER' LIMIT 1`)!.id;
+    const url = await endsAt(saveSupplierTerms, {
+      supplier_id: sup, product_id: pid, premium_usd_mt: 200, transaction_usd_mt: 10,
+      factor_pct: 3.75, handling_inr_mt: 6200, basis: 'MONTH_AVG', exchange_basis: 'SBI_TT',
+    });
+    expect(url).toBe(`/suppliers/${sup}`);
+    expect(get(`SELECT premium_usd_mt, factor_pct, default_basis FROM supplier_terms WHERE supplier_id=? AND product_id=?`, sup, pid))
+      .toEqual({ premium_usd_mt: 200, factor_pct: 3.75, default_basis: 'MONTH_AVG' });
+    expect(get(`SELECT exchange_basis FROM parties WHERE id=?`, sup)).toEqual({ exchange_basis: 'SBI_TT' });
+    // upsert same product, factor over 100 clamps to 100, exchange back to RBI
+    await endsAt(saveSupplierTerms, { supplier_id: sup, product_id: pid, factor_pct: 999, exchange_basis: 'RBI_TT' });
+    expect(get(`SELECT factor_pct FROM supplier_terms WHERE supplier_id=? AND product_id=?`, sup, pid)).toEqual({ factor_pct: 100 });
+    expect(get(`SELECT exchange_basis FROM parties WHERE id=?`, sup)).toEqual({ exchange_basis: 'RBI_TT' });
   });
 });

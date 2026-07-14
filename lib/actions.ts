@@ -94,6 +94,29 @@ export async function saveSupplierPlan(fd: FormData) {
   redirect(`/suppliers?month=${month}&product=${pid}`);
 }
 
+// ---------- supplier payment terms (per product) + exchange basis (per supplier) ----------
+export async function saveSupplierTerms(fd: FormData) {
+  const sid = num(fd, 'supplier_id');
+  const pid = num(fd, 'product_id');
+  if (!sid || !pid) redirect('/suppliers');
+  const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, isFinite(n) ? n : 0));
+  const premium = clamp(num(fd, 'premium_usd_mt'), 0, 5000);
+  const txn = clamp(num(fd, 'transaction_usd_mt'), 0, 5000);
+  const factor = clamp(num(fd, 'factor_pct'), 0, 100);
+  const handling = clamp(num(fd, 'handling_inr_mt'), 0, 100000);
+  const basis = str(fd, 'basis') || 'DAY';
+  const exchange = str(fd, 'exchange_basis') === 'SBI_TT' ? 'SBI_TT' : 'RBI_TT';
+  run(`INSERT INTO supplier_terms (supplier_id, product_id, premium_usd_mt, transaction_usd_mt, factor_pct, handling_inr_mt, default_basis)
+       VALUES (?,?,?,?,?,?,?)
+       ON CONFLICT(supplier_id, product_id) DO UPDATE SET
+         premium_usd_mt = excluded.premium_usd_mt, transaction_usd_mt = excluded.transaction_usd_mt,
+         factor_pct = excluded.factor_pct, handling_inr_mt = excluded.handling_inr_mt, default_basis = excluded.default_basis`,
+    sid, pid, premium, txn, factor, handling, basis);
+  run(`UPDATE parties SET exchange_basis = ? WHERE id = ?`, exchange, sid);
+  refresh();
+  redirect(`/suppliers/${sid}`);
+}
+
 // ---------- booking ----------
 export async function addBooking(fd: FormData) {
   const kind = str(fd, 'kind') === 'SALE' ? 'SALE' : 'PURCHASE';

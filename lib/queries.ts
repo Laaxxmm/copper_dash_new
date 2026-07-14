@@ -529,6 +529,64 @@ export function monthlyPlan(month: string): SupplierMonthRow[] {
      ORDER BY (p.manual_rank IS NULL), p.manual_rank, p.name`, month, month);
 }
 
+// ---------- supplier detail page (Phase C) ----------
+export type SupplierDetail = {
+  id: number; name: string; city: string | null; phone: string | null; email: string | null;
+  gstin: string | null; exchange_basis: string; manual_rank: number | null; credit_days: number;
+};
+export function supplierDetail(id: number): SupplierDetail | undefined {
+  return get<SupplierDetail>(
+    `SELECT id, name, city, phone, email, gstin, IFNULL(exchange_basis, 'RBI_TT') exchange_basis,
+            manual_rank, IFNULL(credit_days, 0) credit_days
+     FROM parties WHERE id = ? AND type = 'SUPPLIER'`, id);
+}
+
+export type SupplierTerm = {
+  product_id: number; description: string; type: string;
+  premium_usd_mt: number; transaction_usd_mt: number; factor_pct: number; handling_inr_mt: number; basis: string;
+};
+/** Every product with this supplier's saved terms (defaults filled for products not yet set). */
+export function supplierTermsByProduct(id: number): SupplierTerm[] {
+  return all<SupplierTerm>(
+    `SELECT pr.id product_id, pr.description, pr.type,
+            IFNULL(st.premium_usd_mt, 0) premium_usd_mt, IFNULL(st.transaction_usd_mt, 0) transaction_usd_mt,
+            IFNULL(st.factor_pct, 0) factor_pct, IFNULL(st.handling_inr_mt, 0) handling_inr_mt,
+            IFNULL(st.default_basis, 'DAY') basis
+     FROM products pr LEFT JOIN supplier_terms st ON st.product_id = pr.id AND st.supplier_id = ?
+     ORDER BY pr.type DESC, pr.size_mm`, id);
+}
+
+/** This supplier's target/agreed/lifted for one month, only products that have a target or a lift. */
+export function supplierMonthByProduct(id: number, month: string) {
+  return all<{ product_id: number; description: string; target_mt: number; agreed_mt: number; lifted_mt: number }>(
+    `SELECT pr.id product_id, pr.description,
+            IFNULL(t.target_mt, 0) target_mt, IFNULL(t.agreed_mt, 0) agreed_mt, IFNULL(l.lifted_mt, 0) lifted_mt
+     FROM products pr
+     LEFT JOIN supplier_targets t ON t.product_id = pr.id AND t.supplier_id = ? AND t.month = ?
+     LEFT JOIN (SELECT b.product_id, SUM(l.qty_mt) lifted_mt FROM liftings l JOIN bookings b ON b.id = l.booking_id
+                WHERE b.kind = 'PURCHASE' AND b.party_id = ? AND strftime('%Y-%m', l.dispatch_date) = ?
+                GROUP BY b.product_id) l ON l.product_id = pr.id
+     WHERE t.id IS NOT NULL OR l.lifted_mt > 0
+     ORDER BY pr.type DESC, pr.size_mm`, id, month, id, month);
+}
+
+/** Blended cost of what we actually lifted from this supplier, grouped by the basis it was priced on. */
+export function supplierCostByBasis(id: number) {
+  return all<{ basis: string; qty: number; avg_rate_mt: number | null }>(
+    `SELECT b.pricing_basis basis, ROUND(SUM(l.qty_mt), 1) qty,
+            SUM(l.qty_mt * f.rate) / NULLIF(SUM(l.qty_mt), 0) avg_rate_mt
+     FROM liftings l JOIN bookings b ON b.id = l.booking_id
+     LEFT JOIN ${FIX_AGG} f ON f.booking_id = b.id
+     WHERE b.kind = 'PURCHASE' AND b.party_id = ?
+     GROUP BY b.pricing_basis ORDER BY qty DESC`, id);
+}
+
+export function supplierPurchaseOrders(id: number) {
+  return all<{ po_no: string; qty_mt: number; rate_inr_kg: number; gross_amount: number; status: string; created_date: string }>(
+    `SELECT po_no, qty_mt, rate_inr_kg, gross_amount, status, created_date
+     FROM purchase_orders WHERE supplier_id = ? ORDER BY created_date DESC, id DESC`, id);
+}
+
 export type ProductTargetRow = {
   supplier_id: number; supplier: string; city: string | null; phone: string | null;
   manual_rank: number | null; target_mt: number; agreed_mt: number; lifted_mt: number;
