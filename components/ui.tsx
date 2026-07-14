@@ -47,10 +47,12 @@ export function StatusBadge({ status }: { status: string }) {
 
 /** Booking progress: how much is priced, how much has moved. Plain and visual. */
 export function Pipeline({ qty, fixed, lifted }: { qty: number; fixed: number; lifted: number }) {
-  const pct = (x: number) => Math.min(100, Math.round((x / qty) * 100));
+  const num = (x: number) => (typeof x === 'number' && isFinite(x) ? x : 0);
+  const q = num(qty);
+  const pct = (x: number) => (q > 0 ? Math.min(100, Math.round((num(x) / q) * 100)) : 0);
   const rows = [
-    { label: 'Priced', value: fixed, cls: 'price' },
-    { label: 'Moved', value: lifted, cls: '' },
+    { label: 'Priced', value: num(fixed), cls: 'price' },
+    { label: 'Moved', value: num(lifted), cls: '' },
   ];
   return (
     <div className="pipe">
@@ -60,7 +62,7 @@ export function Pipeline({ qty, fixed, lifted }: { qty: number; fixed: number; l
           <span className="pipe-bar">
             <span className={`pipe-fill ${pct(r.value) >= 100 ? 'full' : r.cls}`} style={{ width: `${pct(r.value)}%` }} />
           </span>
-          <span className="pipe-pct">{r.value.toLocaleString('en-IN', { maximumFractionDigits: 1 })}/{qty}</span>
+          <span className="pipe-pct">{r.value.toLocaleString('en-IN', { maximumFractionDigits: 1 })}/{q}</span>
         </div>
       ))}
     </div>

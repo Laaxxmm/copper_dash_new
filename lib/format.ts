@@ -1,25 +1,29 @@
 // Formatting helpers — Indian numbering, plain language.
+// They render values straight from the DB, which can be null/undefined for an
+// empty aggregate — so coerce to a finite number rather than crash the page.
+const n = (x: unknown): number => (typeof x === 'number' && isFinite(x) ? x : Number(x)) || 0;
 
 export function inr(amount: number, opts: { compact?: boolean } = {}): string {
-  const abs = Math.abs(amount);
+  const a = n(amount);
+  const abs = Math.abs(a);
   if (opts.compact !== false) {
-    if (abs >= 1_00_00_000) return `₹${(amount / 1_00_00_000).toFixed(2)} Cr`;
-    if (abs >= 1_00_000) return `₹${(amount / 1_00_000).toFixed(1)} L`;
+    if (abs >= 1_00_00_000) return `₹${(a / 1_00_00_000).toFixed(2)} Cr`;
+    if (abs >= 1_00_000) return `₹${(a / 1_00_000).toFixed(1)} L`;
   }
-  return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  return `₹${a.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 }
 
 export function inrFull(amount: number): string {
-  return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  return `₹${n(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 }
 
 /** Rate per MT shown the way the trade talks: ₹/kg */
 export function perKg(ratePerMt: number): string {
-  return `₹${(ratePerMt / 1000).toLocaleString('en-IN', { maximumFractionDigits: 1 })}/kg`;
+  return `₹${(n(ratePerMt) / 1000).toLocaleString('en-IN', { maximumFractionDigits: 1 })}/kg`;
 }
 
 export function mt(qty: number): string {
-  return `${qty.toLocaleString('en-IN', { maximumFractionDigits: 1 })} MT`;
+  return `${n(qty).toLocaleString('en-IN', { maximumFractionDigits: 1 })} MT`;
 }
 
 export function dateShort(isoDate: string | null | undefined): string {

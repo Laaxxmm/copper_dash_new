@@ -15,6 +15,18 @@ describe('format', () => {
     expect(perKg(900000)).toBe('₹900/kg');
   });
 
+  it('never crashes on a null/undefined/NaN value from the DB', () => {
+    // an empty SQL aggregate can yield null — the page must not 500 over it
+    for (const bad of [null, undefined, NaN]) {
+      expect(() => inr(bad as unknown as number)).not.toThrow();
+      expect(() => mt(bad as unknown as number)).not.toThrow();
+      expect(() => perKg(bad as unknown as number)).not.toThrow();
+      expect(() => inrFull(bad as unknown as number)).not.toThrow();
+    }
+    expect(mt(null as unknown as number)).toBe('0 MT');
+    expect(inr(null as unknown as number)).toBe('₹0');
+  });
+
   it('formats quantities and dates', () => {
     expect(mt(3)).toBe('3 MT');
     expect(mt(12.5)).toBe('12.5 MT');

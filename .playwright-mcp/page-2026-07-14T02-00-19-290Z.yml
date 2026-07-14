@@ -1,0 +1,121 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]: CopperBook
+      - generic [ref=e5]: Trade Register
+      - link "Add entry" [ref=e6] [cursor=pointer]:
+        - /url: /add
+      - navigation [ref=e9]:
+        - link "Today" [ref=e10] [cursor=pointer]:
+          - /url: /
+        - link "Where to buy" [ref=e14] [cursor=pointer]:
+          - /url: /where-to-buy
+        - link "Requirements" [ref=e18] [cursor=pointer]:
+          - /url: /requirements
+        - link "Inbox" [ref=e21] [cursor=pointer]:
+          - /url: /inbox
+        - link "People" [ref=e25] [cursor=pointer]:
+          - /url: /parties
+        - link "Market & news" [ref=e31] [cursor=pointer]:
+          - /url: /news
+        - link "Settings" [ref=e35] [cursor=pointer]:
+          - /url: /settings
+      - generic [ref=e39]:
+        - button "Sign out" [ref=e41] [cursor=pointer]
+        - generic [ref=e42]: All figures live from the trade register. Prices in ₹ per kg unless marked.
+    - main [ref=e43]:
+      - generic [ref=e73]:
+        - generic [ref=e74]:
+          - heading "Today" [level=1] [ref=e75]
+          - paragraph [ref=e76]: "One look at the whole business: material, money and risk, right now."
+        - generic [ref=e77]:
+          - generic [ref=e78]: Copper price · 14 Jul 2026
+          - generic "₹9,75,500 per MT" [ref=e79]:
+            - text: ₹975.5/kg
+            - generic [ref=e80]: ▼ 4.7
+      - link "LME copper · cash · live $13,461/MT ▲1.5% In rupees (indication) ₹1198.1/kg Dollar · RBI TT ₹89.01 Latest news LME reports active Q2 - Recycling Today · 16 hr ago →" [ref=e81] [cursor=pointer]:
+        - /url: /news
+        - generic [ref=e82]:
+          - generic [ref=e83]: LME copper · cash · live
+          - generic [ref=e84]:
+            - text: $13,461/MT
+            - emphasis [ref=e85]: ▲1.5%
+        - generic [ref=e86]:
+          - generic [ref=e87]: In rupees (indication)
+          - text: ₹1198.1/kg
+        - generic [ref=e88]:
+          - generic [ref=e89]: Dollar · RBI TT
+          - text: ₹89.01
+        - generic [ref=e90]:
+          - generic [ref=e91]: Latest news
+          - generic [ref=e92]:
+            - text: LME reports active Q2 - Recycling Today
+            - emphasis [ref=e93]: · 16 hr ago
+        - generic [ref=e94]: →
+      - generic [ref=e95]:
+        - generic [ref=e96]:
+          - generic [ref=e97]: Open requirements
+          - generic [ref=e98]: "0"
+          - generic [ref=e99]: 0 MT still to source across them
+        - generic [ref=e100]:
+          - generic [ref=e101]: Quantity without a price
+          - generic [ref=e102]: 13 MT
+          - generic [ref=e103]: Booked material where the rate is not fixed yet — this moves with the market
+        - generic [ref=e104]:
+          - generic [ref=e105]: Live LME copper
+          - generic [ref=e106]: $13,461
+          - generic [ref=e107]: ₹1198.1/kg indication · check Where to buy
+      - generic [ref=e108]:
+        - generic [ref=e109]:
+          - generic [ref=e110]: Requirements in progress
+          - paragraph [ref=e111]:
+            - text: No open requirements.
+            - link "Create one →" [ref=e112] [cursor=pointer]:
+              - /url: /requirements/new
+        - generic [ref=e113]:
+          - generic [ref=e114]: Needs your attention
+          - generic [ref=e115]:
+            - link "Kaveri Conductors payment late by 81 days 2 bills pending" [ref=e116] [cursor=pointer]:
+              - /url: /money?kind=SALE&unpaid=1
+              - generic [ref=e118]:
+                - generic [ref=e119]: Kaveri Conductors payment late by 81 days
+                - generic [ref=e120]: 2 bills pending
+            - link "Elite Winding Wires payment late by 49 days 1 bill pending" [ref=e121] [cursor=pointer]:
+              - /url: /money?kind=SALE&unpaid=1
+              - generic [ref=e123]:
+                - generic [ref=e124]: Elite Winding Wires payment late by 49 days
+                - generic [ref=e125]: 1 bill pending
+            - link "Lotus Electricals payment late by 113 days 2 bills pending" [ref=e126] [cursor=pointer]:
+              - /url: /money?kind=SALE&unpaid=1
+              - generic [ref=e128]:
+                - generic [ref=e129]: Lotus Electricals payment late by 113 days
+                - generic [ref=e130]: 2 bills pending
+            - link "Sri Venkateswara Wires payment late by 14 days 1 bill pending" [ref=e131] [cursor=pointer]:
+              - /url: /money?kind=SALE&unpaid=1
+              - generic [ref=e133]:
+                - generic [ref=e134]: Sri Venkateswara Wires payment late by 14 days
+                - generic [ref=e135]: 1 bill pending
+            - 'link "PB-027: 5 MT lifted but price not fixed Mehta Metals — price moves daily, this is open risk" [ref=e136] [cursor=pointer]':
+              - /url: /bookings?status=OPEN
+              - generic [ref=e138]:
+                - generic [ref=e139]: "PB-027: 5 MT lifted but price not fixed"
+                - generic [ref=e140]: Mehta Metals — price moves daily, this is open risk
+            - 'link "SB-036: 5 MT lifted but price not fixed Annapurna Alloys — price moves daily, this is open risk" [ref=e141] [cursor=pointer]':
+              - /url: /bookings?status=OPEN
+              - generic [ref=e143]:
+                - generic [ref=e144]: "SB-036: 5 MT lifted but price not fixed"
+                - generic [ref=e145]: Annapurna Alloys — price moves daily, this is open risk
+            - 'link "SB-034: lifting window closes in 7 days Material pending with Annapurna Alloys" [ref=e146] [cursor=pointer]':
+              - /url: /bookings?status=OPEN
+              - generic [ref=e148]:
+                - generic [ref=e149]: "SB-034: lifting window closes in 7 days"
+                - generic [ref=e150]: Material pending with Annapurna Alloys
+      - generic [ref=e151]:
+        - text: "The flow: pick the cheapest supplier on"
+        - link "Where to buy" [ref=e152] [cursor=pointer]:
+          - /url: /where-to-buy
+        - text: ", split a month's need across suppliers on"
+        - link "Requirements" [ref=e153] [cursor=pointer]:
+          - /url: /requirements
+        - text: ", and send each an ordering slip. “Quantity without a price” is committed material whose rate isn't fixed — market risk until you book it."
+  - alert [ref=e72]
