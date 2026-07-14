@@ -693,3 +693,13 @@ a.btn, a.btn-sm { color: #fff; }
 .tb-price { margin-top: 12px; font-size: 16px; color: var(--ink-2); }
 .tb-price b { font-family: var(--font-display); font-size: 26px; color: var(--copper-text); }
 .tb-actions { display: flex; gap: 10px; }
+
+/* ---------- Sales phase S4: collections pop-up ---------- */
+.collect-banner { display: flex; align-items: center; gap: 12px; background: #fff7ed; border: 1px solid var(--copper); border-radius: 12px; padding: 10px 16px; margin-bottom: 16px; font-size: 14px; color: var(--ink); }
+.collect-banner.urgent { background: #fbeae6; border-color: var(--bad); }
+.cb-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--copper); flex-shrink: 0; }
+.collect-banner.urgent .cb-dot { background: var(--bad); }
+.cb-text { flex: 1; }
+.cb-over { color: var(--bad); font-weight: 600; }
+.cb-link { color: var(--copper-text); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.cb-x { background: none; border: none; color: var(--ink-3); cursor: pointer; font-size: 14px; padding: 2px 6px; }

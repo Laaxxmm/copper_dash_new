@@ -55,6 +55,14 @@ export function salePIFull(id: number): SalePIFull | undefined {
      WHERE pi.id = ?`, id);
 }
 
+export function customerSalePIs(customerId: number) {
+  return all<{ id: number; pi_no: string; product_name: string | null; qty_mt: number; rate_inr_kg: number; gross_amount: number; basis: string | null; status: string; customer_po: string | null; created_date: string }>(
+    `SELECT pi.id, pi.pi_no, sp.name product_name, pi.qty_mt, pi.rate_inr_kg, pi.gross_amount, pi.basis,
+            pi.status, pi.customer_po, pi.created_date
+     FROM sales_pi pi LEFT JOIN sale_products sp ON sp.id = pi.sale_product_id
+     WHERE pi.customer_id = ? ORDER BY pi.created_date DESC, pi.id DESC`, customerId);
+}
+
 export function salePIList() {
   return all<{ id: number; pi_no: string; customer: string; product_name: string | null; qty_mt: number; rate_inr_kg: number; gross_amount: number; basis: string | null; status: string; created_date: string }>(
     `SELECT pi.id, pi.pi_no, c.name customer, sp.name product_name, pi.qty_mt, pi.rate_inr_kg, pi.gross_amount,

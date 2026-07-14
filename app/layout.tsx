@@ -3,9 +3,11 @@ import { Spectral, Hanken_Grotesk, Spline_Sans_Mono } from 'next/font/google';
 import './globals.css';
 import Nav from '@/components/Nav';
 import SectionTabs from '@/components/SectionTabs';
+import CollectionsBanner from '@/components/CollectionsBanner';
 import { logout } from '@/lib/auth-actions';
 import { companyProfile } from '@/lib/company';
-import { dateLong, today } from '@/lib/format';
+import { collectionsSummary } from '@/lib/queries';
+import { dateLong, inr, today } from '@/lib/format';
 
 const display = Spectral({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-display' });
 const body = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-body' });
@@ -18,6 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const co = companyProfile();
+  const collect = collectionsSummary();
   // First word as the copper-accented lead, rest in ink — keeps the wordmark tidy for long names.
   const [lead, ...rest] = co.name.replace(/\s*\(P\)\s*LTD\.?/i, '').split(' ');
   return (
@@ -41,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </aside>
           <main className="main">
             <div className="topbar"><span className="topbar-date">{dateLong(today())}</span></div>
+            <CollectionsBanner count={collect.count} total={inr(collect.total)} overdue={inr(collect.overdue)} hasOverdue={collect.overdue > 1} />
             <SectionTabs />
             {children}
           </main>

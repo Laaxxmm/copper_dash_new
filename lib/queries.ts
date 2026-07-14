@@ -501,6 +501,32 @@ export function alerts(): Alert[] {
   return out.sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 8);
 }
 
+// ---------- collections (Sales: money to collect from customers) ----------
+export type CollectionRow = {
+  invoice_id: number; customer_id: number; customer: string; invoice_no: string;
+  outstanding: number; due_date: string; days_to_due: number;
+};
+/** Customer (SALE) invoices with money outstanding, due within 7 days or already overdue. */
+export function collectionsDue(): CollectionRow[] {
+  return all<CollectionRow>(
+    `SELECT i.id invoice_id, p.id customer_id, p.name customer, i.invoice_no,
+            ROUND(i.total_amount - IFNULL(pp.paid, 0), 0) outstanding, i.due_date,
+            CAST(julianday(i.due_date) - julianday(date('now')) AS INTEGER) days_to_due
+     FROM invoices i JOIN parties p ON p.id = i.party_id
+     LEFT JOIN ${PAID_AGG} pp ON pp.invoice_id = i.id
+     WHERE i.kind = 'SALE' AND i.total_amount - IFNULL(pp.paid, 0) > 1
+       AND i.due_date <= date('now', '+7 days')
+     ORDER BY i.due_date`);
+}
+export function collectionsSummary(): { count: number; total: number; overdue: number } {
+  const rows = collectionsDue();
+  return {
+    count: rows.length,
+    total: rows.reduce((s, r) => s + r.outstanding, 0),
+    overdue: rows.filter((r) => r.days_to_due < 0).reduce((s, r) => s + r.outstanding, 0),
+  };
+}
+
 // ---------- monthly procurement plan (dashboard + suppliers) ----------
 export type SupplierMonthRow = {
   supplier_id: number; supplier: string; city: string | null; phone: string | null;
