@@ -390,4 +390,21 @@ export function seedDemo(db: DatabaseSync) {
   makePO(supplierIds[0], w160, 20); makePO(supplierIds[0], rod8, 8);
   makePO(supplierIds[2], w160, 12); makePO(supplierIds[3], w160, 10);
   makePO(supplierIds[4], rod8, 8, 'CANCELLED');
+
+  // ---------- Sales demo: reusable pricing templates + customer products ----------
+  const insTpl = db.prepare(`INSERT INTO price_templates (name, notes, created_date) VALUES (?,?,?)`);
+  const insLine = db.prepare(`INSERT INTO price_lines (template_id, seq, label, kind, operator, value) VALUES (?,?,?,?,?,?)`);
+  const tpl = (name: string, notes: string, lines: [string, string, string, number][]) => {
+    const id = Number(insTpl.run(name, notes, TODAY).lastInsertRowid);
+    lines.forEach((l, i) => insLine.run(id, i, l[0], l[1], l[2], l[3]));
+    return id;
+  };
+  const tplFine = tpl('Fine wire — standard markup', 'Drawn wire: fabrication + wastage + margin',
+    [['Copper cost', 'BUY_COST', 'ADD', 0], ['Fabrication', 'FABRICATION', 'ADD', 0], ['Wastage', 'PERCENT', 'ADD', 2], ['Margin', 'FIXED', 'ADD', 9]]);
+  const tplResale = tpl('Direct resale', 'Buy price + flat margin',
+    [['Copper cost', 'BUY_COST', 'ADD', 0], ['Margin', 'FIXED', 'ADD', 6]]);
+  const insSP = db.prepare(`INSERT INTO sale_products (customer_id, name, raw_product_id, template_id, fabrication_cost, notes, active, created_date) VALUES (?,?,?,?,?,?,1,?)`);
+  insSP.run(customerIds[1], '2.5mm drawn wire', prodBy('WIRE', 2.5), tplFine, 18, null, TODAY);
+  insSP.run(customerIds[0], '8mm rod (resale)', rod8, tplResale, 0, null, TODAY);
+  insSP.run(customerIds[3], '1.6mm winding wire', w160, tplFine, 15, null, TODAY);
 }
