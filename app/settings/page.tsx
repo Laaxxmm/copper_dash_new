@@ -2,11 +2,10 @@ import { PageHead } from '@/components/ui';
 import { CopperIngots } from '@/components/CopperArt';
 import EraseForm from '@/components/EraseForm';
 import { logout } from '@/lib/auth-actions';
-import { reloadDemoData, saveModules, saveMailMap, saveGmail } from '@/lib/settings-actions';
+import { reloadDemoData, saveMailMap, saveGmail, saveCompany } from '@/lib/settings-actions';
 import { ADMIN_USER } from '@/lib/auth';
-import { getSetting } from '@/lib/company';
+import { getSetting, companyProfile } from '@/lib/company';
 import { all } from '@/lib/db';
-import { OPTIONAL_MODULES, enabledModules } from '@/lib/modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +17,15 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     ]),
   );
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  const enabled = enabledModules();
   const suppliers = all<{ id: number; name: string; email: string | null; mail_keywords: string | null }>(
     `SELECT id, name, email, mail_keywords FROM parties WHERE type='SUPPLIER' ORDER BY (manual_rank IS NULL), manual_rank, name`);
   const gmail = { address: getSetting('mail:address'), host: getSetting('mail:imap_host', 'imap.gmail.com'), poll: getSetting('mail:poll_min', '10'), hasPw: !!getSetting('mail:app_password') };
+  const co = companyProfile();
+  const COMPANY_FIELDS: [string, keyof typeof co][] = [
+    ['Company name', 'name'], ['Address', 'address'], ['City / PIN', 'city'], ['State', 'state'],
+    ['State code', 'state_code'], ['GSTIN', 'gstin'], ['PAN', 'pan'], ['CIN', 'cin'],
+    ['Bank', 'bank'], ['Branch', 'branch'], ['IFSC', 'ifsc'], ['Account no.', 'account'],
+  ];
 
   return (
     <>
@@ -29,10 +33,27 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       {done === 'erased' ? <div className="notice good">All data erased. The register is now empty and ready for your real entries.</div> : null}
       {done === 'demo' ? <div className="notice good">Demo data reloaded.</div> : null}
-      {done === 'modules' ? <div className="notice good">Menu updated.</div> : null}
       {err === 'confirm' ? <div className="notice bad">Type ERASE exactly to confirm — nothing was deleted.</div> : null}
       {done === 'mailmap' ? <div className="notice good">Mailbox map saved.</div> : null}
       {done === 'gmail' ? <div className="notice good">Gmail connection saved. Live pull activates once the fetch worker is enabled.</div> : null}
+      {done === 'company' ? <div className="notice good">Company profile saved — it heads every PO.</div> : null}
+      {err === 'logo' ? <div className="notice bad">Logo must be an image under 250 KB.</div> : null}
+
+      <form action={saveCompany} className="card card-pad section-gap">
+        <div className="card-title">Company profile — the buyer on every PO</div>
+        <div className="company-logo-row">
+          {co.logo ? <img src={co.logo} alt="logo" className="brand-logo" style={{ maxHeight: 40 }} /> : <span className="muted">No logo yet</span>}
+          <label className="fr-field" style={{ flex: 1 }}>Upload logo (PNG/SVG, ≤ 250 KB) — shown in the sidebar
+            <input name="logo" type="file" accept="image/*" />
+          </label>
+        </div>
+        <div className="form-grid" style={{ marginTop: 12 }}>
+          {COMPANY_FIELDS.map(([label, key]) => (
+            <label key={key}>{label}<input name={key} type="text" defaultValue={co[key]} /></label>
+          ))}
+        </div>
+        <button type="submit" className="btn btn-sm">Save company profile</button>
+      </form>
 
       <form action={saveGmail} className="card card-pad section-gap">
         <div className="card-title">Mailbox — connect Gmail (auto-pull PI / PO)</div>
@@ -68,23 +89,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </table>
         </div>
         <button type="submit" className="btn btn-sm" style={{ marginTop: 12 }}>Save mailbox map</button>
-      </form>
-
-      <form action={saveModules} className="card card-pad section-gap">
-        <div className="card-title">Menu — show only what you use</div>
-        <p style={{ fontSize: 14, color: 'var(--ink-2)', marginBottom: 12 }}>
-          The core flow (Today, Where to buy, Requirements, People, Market &amp; news) is always shown. Turn these extra
-          modules on only when you need them.
-        </p>
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 14 }}>
-          {OPTIONAL_MODULES.map((m) => (
-            <label key={m.key} style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600, fontSize: 14.5 }}>
-              <input type="checkbox" name={`m_${m.key}`} value="on" defaultChecked={enabled.includes(m.key)} style={{ width: 18, height: 18 }} />
-              {m.label}
-            </label>
-          ))}
-        </div>
-        <button type="submit" className="btn btn-sm">Save menu</button>
       </form>
 
       <div className="grid two-col section-gap" style={{ alignItems: 'start' }}>

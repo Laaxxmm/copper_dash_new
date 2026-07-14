@@ -1,14 +1,16 @@
 import Link from 'next/link';
 import { PageHead, Badge } from '@/components/ui';
 import { pendingCaptures, type ParsedDoc } from '@/lib/capture';
-import { captureEmail, confirmCapture, rejectCapture } from '@/lib/capture-actions';
+import { captureEmail, confirmCapture, rejectCapture, checkMailNow } from '@/lib/capture-actions';
+import { getSetting } from '@/lib/company';
 import { inr, mt } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function InboxPage({ searchParams }: { searchParams: Promise<{ err?: string }> }) {
-  const { err } = await searchParams;
+export default async function InboxPage({ searchParams }: { searchParams: Promise<{ err?: string; msg?: string }> }) {
+  const { err, msg } = await searchParams;
   const rows = pendingCaptures();
+  const gmailReady = !!getSetting('mail:app_password');
 
   return (
     <>
@@ -17,8 +19,14 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         sub="Paste a supplier's PI or PO. It's read, matched to the supplier by email domain / keyword, and staged — nothing posts until you confirm."
       />
       {err ? <div className="form-error">⚠ {err}</div> : null}
+      {msg ? <div className="notice good">{msg}</div> : null}
 
-      <form action={captureEmail} className="card card-pad">
+      <form action={checkMailNow} className="mail-pull">
+        <span>{gmailReady ? 'Gmail is connected.' : 'Connect Gmail in Settings to pull automatically.'}</span>
+        <button type="submit" className="btn-sm">Check mail now</button>
+      </form>
+
+      <form action={captureEmail} className="card card-pad section-gap">
         <div className="card-title">Capture a PI / PO</div>
         <textarea
           name="text" rows={5} required placeholder="Paste the email body (and PDF text) here…"

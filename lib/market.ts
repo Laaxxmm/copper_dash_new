@@ -68,6 +68,23 @@ export async function westmetallLme(): Promise<LmeQuote | null> {
   }
 }
 
+/** COMEX copper (Yahoo HG=F, ¢/lb) → USD/MT, a live proxy when westmetall is down.
+ *  It is NOT the LME cash settlement, so it's labelled 'comex' for the user. */
+async function comexLme(): Promise<LmeQuote | null> {
+  const hg = await yahooQuote('HG=F');
+  if (!hg) return null;
+  const usd_mt = Math.round((hg.price / 100) * LB_PER_MT * 100) / 100; // ¢/lb → $/lb → $/MT
+  if (usd_mt < 3000 || usd_mt > 40000) return null;
+  return { usd_mt, source: 'comex' as 'westmetall', asOf: hg.time ? new Date(hg.time * 1000).toISOString() : new Date().toISOString() };
+}
+
+/** Best available live LME: westmetall cash first, COMEX proxy as fallback.
+ *  Returns the value with its source + timestamp so the UI can show provenance.
+ *  null → the caller shows the last human-confirmed LME (the source of truth). */
+export async function liveLme(): Promise<LmeQuote | null> {
+  return (await westmetallLme()) ?? (await comexLme());
+}
+
 export type NewsItem = { title: string; link: string; source: string; pubDate: string };
 
 function decodeEntities(s: string): string {

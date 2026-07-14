@@ -660,3 +660,9 @@ a.btn, a.btn-sm { color: #fff; }
 .po-terms p { font-size: 12px; color: var(--ink-3); line-height: 1.5; margin: 4px 0; }
 @media (max-width: 640px) { .po-parties { grid-template-columns: 1fr; } }
 @media print { .sidebar, .topbar, .po-toolbar { display: none !important; } .main { padding: 0; } .po-doc { border: none; box-shadow: none; } }
+
+/* ---------- Revamp Phase F: company profile ---------- */
+.company-logo-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+
+/* ---------- Revamp Phase F: mail pull bar ---------- */
+.mail-pull { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--wash-2); border: 1px solid var(--pill-line); border-radius: 12px; padding: 10px 16px; font-size: 13.5px; color: var(--ink-2); }

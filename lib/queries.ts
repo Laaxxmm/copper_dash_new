@@ -440,7 +440,7 @@ export function alerts(): Alert[] {
       severity: r.days > 15 ? 'critical' : 'warning',
       title: `${r.party} payment late by ${r.days} days`,
       detail: `${r.n} bill${r.n > 1 ? 's' : ''} pending`,
-      href: '/money?kind=SALE&unpaid=1',
+      href: '/',
     });
   }
   for (const r of all<{ booking_no: string; party: string; qty: number }>(
@@ -453,7 +453,7 @@ export function alerts(): Alert[] {
       severity: 'warning',
       title: `${r.booking_no}: ${r.qty} MT lifted but price not fixed`,
       detail: `${r.party} — price moves daily, this is open risk`,
-      href: '/bookings?status=OPEN',
+      href: '/orders?status=OPEN',
     });
   }
   // DNPL pricing window closing + $200/MT margin-call risk on unpriced price-later lots
@@ -494,7 +494,7 @@ export function alerts(): Alert[] {
       severity: 'info',
       title: `${r.booking_no}: lifting window closes in ${r.days} day${r.days === 1 ? '' : 's'}`,
       detail: `Material pending with ${r.party}`,
-      href: '/bookings?status=OPEN',
+      href: '/orders?status=OPEN',
     });
   }
   const order = { critical: 0, warning: 1, info: 2 };

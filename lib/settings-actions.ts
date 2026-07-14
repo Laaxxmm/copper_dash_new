@@ -4,16 +4,19 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getDb, run } from './db';
 import { clearAllData, seedDemo } from './seed';
-import { OPTIONAL_MODULES } from './modules';
 
-/** Turn optional menu modules on/off. */
-export async function saveModules(fd: FormData) {
-  for (const m of OPTIONAL_MODULES) {
-    run(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      `module:${m.key}`, fd.get(`m_${m.key}`) === 'on' ? 'on' : 'off');
+/** Company (PO buyer) profile + optional logo upload (stored as a data URI). */
+export async function saveCompany(fd: FormData) {
+  const keys = ['name', 'address', 'city', 'state', 'state_code', 'gstin', 'pan', 'cin', 'bank', 'branch', 'ifsc', 'account'];
+  for (const k of keys) run(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, `company:${k}`, String(fd.get(k) ?? '').trim());
+  const logo = fd.get('logo');
+  if (logo instanceof File && logo.size > 0) {
+    if (logo.size > 250_000 || !logo.type.startsWith('image/')) redirect('/settings?err=logo');
+    const dataUri = `data:${logo.type};base64,${Buffer.from(await logo.arrayBuffer()).toString('base64')}`;
+    run(`INSERT INTO settings (key, value) VALUES ('company:logo', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, dataUri);
   }
   revalidatePath('/', 'layout');
-  redirect('/settings?done=modules');
+  redirect('/settings?done=company');
 }
 
 /** Mailbox → supplier map: each supplier's sender email domain + keywords, used to

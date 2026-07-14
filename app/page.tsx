@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { PageHead, Tile } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
 import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard } from '@/lib/queries';
-import { copperNews, timeAgo, westmetallLme } from '@/lib/market';
+import { copperNews, timeAgo, liveLme } from '@/lib/market';
 import { lmeStrip } from '@/lib/pricing';
 import { mt, inr, monthLabel, today } from '@/lib/format';
 
@@ -14,8 +14,8 @@ function pct(n: number, d: number) {
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month = today().slice(0, 7) } = await searchParams;
-  const [liveLme, headlines] = await Promise.all([westmetallLme(), copperNews(3)]);
-  const strip = lmeStrip(liveLme?.usd_mt);
+  const [lq, headlines] = await Promise.all([liveLme(), copperNews(3)]);
+  const strip = lmeStrip(lq?.usd_mt);
   const plan = monthlyPlan(month);
   const cost = costOfPurchase(month);
   const exposureQty = unpricedExposure().reduce((s, e) => s + e.qty_open, 0);
@@ -38,7 +38,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <Link href="/news" className="market-strip card">
         <span className="ms-item">
-          <span className="ms-label">LME copper · cash {strip?.live ? '· live' : ''}</span>
+          <span className="ms-label">LME copper · cash {lq ? `· ${lq.source} · ${timeAgo(lq.asOf)}` : '· last saved'}</span>
           <span className="ms-value">
             {strip ? `$${Math.round(strip.usd_mt).toLocaleString('en-US')}/MT` : 'no LME yet'}
             {strip?.changePct != null && (

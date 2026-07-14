@@ -75,3 +75,11 @@ export async function rejectCapture(fd: FormData) {
   refresh();
   redirect('/inbox');
 }
+
+/** Pull unseen PI/PO from the configured Gmail mailbox into the review queue. */
+export async function checkMailNow() {
+  const { pollMailbox } = await import('./mailbox');
+  const r = await pollMailbox();
+  refresh();
+  redirect('/inbox?msg=' + encodeURIComponent(r.message));
+}
