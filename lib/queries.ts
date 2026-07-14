@@ -416,6 +416,17 @@ export function partyLedger(id: number) {
 // ---------- alerts (Today page) ----------
 export type Alert = { severity: 'critical' | 'warning' | 'info'; title: string; detail: string; href: string };
 
+/** DNPL provisional-pricing deadline (PI terms): material bought on the 1st–15th
+ *  must be priced before month-end; bought on the 16th–end, before the 15th of the
+ *  next month. Returns the deadline as YYYY-MM-DD. */
+export function dnplDeadline(bookingDate: string): string {
+  const d = new Date(bookingDate + 'T00:00:00Z');
+  const end = d.getUTCDate() <= 15
+    ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))   // last day of this month
+    : new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 15)); // 15th of next month
+  return end.toISOString().slice(0, 10);
+}
+
 export function alerts(): Alert[] {
   const out: Alert[] = [];
   for (const r of all<{ party: string; amt: number; days: number; n: number }>(
@@ -444,6 +455,34 @@ export function alerts(): Alert[] {
       detail: `${r.party} — price moves daily, this is open risk`,
       href: '/bookings?status=OPEN',
     });
+  }
+  // DNPL pricing window closing + $200/MT margin-call risk on unpriced price-later lots
+  for (const r of all<{ booking_no: string; party: string; qty: number; booking_date: string; book_lme: number | null; cur_lme: number | null }>(
+    `SELECT b.booking_no, p.name party, ROUND(b.qty_mt - IFNULL(f.q, 0), 1) qty, b.booking_date,
+            (SELECT usd_mt FROM lme_prices WHERE price_date <= b.booking_date ORDER BY price_date DESC LIMIT 1) book_lme,
+            (SELECT usd_mt FROM lme_prices ORDER BY price_date DESC LIMIT 1) cur_lme
+     FROM bookings b JOIN parties p ON p.id = b.party_id
+     LEFT JOIN ${FIX_AGG} f ON f.booking_id = b.id
+     WHERE b.status = 'OPEN' AND b.pricing_basis = 'PRICE_LATER' AND b.qty_mt - IFNULL(f.q, 0) > 0.05`)) {
+    const dl = dnplDeadline(r.booking_date);
+    const days = Math.round((Date.parse(dl) - Date.now()) / 86_400_000);
+    if (days <= 7) {
+      out.push({
+        severity: days < 0 ? 'critical' : 'warning',
+        title: `${r.booking_no}: DNPL pricing ${days < 0 ? `overdue by ${-days} day${days === -1 ? '' : 's'}` : `due in ${days} day${days === 1 ? '' : 's'}`}`,
+        detail: `${r.qty} MT unpriced with ${r.party} — fix by ${dl} or it settles at market`,
+        href: '/add?what=price-fix',
+      });
+    }
+    const move = r.book_lme && r.cur_lme ? Math.abs(r.cur_lme - r.book_lme) : 0;
+    if (move >= 200) {
+      out.push({
+        severity: move >= 400 ? 'critical' : 'warning',
+        title: `${r.booking_no}: LME moved $${Math.round(move)}/MT — margin-call risk`,
+        detail: `${r.qty} MT unpriced with ${r.party} (booked ~$${Math.round(r.book_lme!)}, now ~$${Math.round(r.cur_lme!)})`,
+        href: '/add?what=price-fix',
+      });
+    }
   }
   for (const r of all<{ booking_no: string; party: string; days: number }>(
     `SELECT b.booking_no, p.name party, CAST(julianday(b.lift_by_date) - julianday(date('now')) AS INTEGER) days

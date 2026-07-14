@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
 import { all, get } from '@/lib/db';
-import { addBooking, addFixation, addParty, addPayment, saveCsp } from '@/lib/actions';
+import { addBooking, addFixation, addParty, addPayment, saveCsp, saveLme } from '@/lib/actions';
+import { westmetallLme } from '@/lib/market';
 import { BASIS_LABEL, inr, today } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,7 @@ const TABS = [
   { key: 'payment', label: 'Payment' },
   { key: 'party', label: 'New customer / supplier' },
   { key: 'price', label: "Today's copper price" },
+  { key: 'lme', label: "Today's LME" },
 ];
 
 export default async function AddPage({ searchParams }: { searchParams: Promise<{ what?: string; err?: string }> }) {
@@ -39,6 +41,8 @@ export default async function AddPage({ searchParams }: { searchParams: Promise<
      WHERE i.total_amount - IFNULL(pay.paid,0) > 1
      ORDER BY i.due_date`);
   const lastCsp = get<{ p: number }>(`SELECT price_inr_mt p FROM csp_prices ORDER BY price_date DESC LIMIT 1`)!.p;
+  const lastLme = get<{ u: number; d: string; s: string }>(`SELECT usd_mt u, price_date d, source s FROM lme_prices ORDER BY price_date DESC LIMIT 1`);
+  const liveLme = what === 'lme' ? await westmetallLme() : null;
 
   return (
     <>
@@ -222,6 +226,30 @@ export default async function AddPage({ searchParams }: { searchParams: Promise<
           </div>
           <button className="btn" type="submit">Save price</button>
           <p className="chart-note">Tip: enter this every morning from the producer&apos;s circular or your broker&apos;s message. {inr(lastCsp)} /MT was the last saved price.</p>
+        </form>
+      )}
+
+      {what === 'lme' && (
+        <form action={saveLme} className="card card-pad form">
+          <div className="card-title">Today&apos;s LME — the US$ base every supplier quote is built on</div>
+          <div className="form-grid">
+            <label>Date
+              <input name="date" type="date" defaultValue={today()} required />
+            </label>
+            <label>LME copper (US$ per MT)
+              <input name="usd_mt" type="number" step="0.01" min="3000" max="40000" required
+                     defaultValue={liveLme?.usd_mt ?? lastLme?.u} placeholder="e.g. 13250" />
+            </label>
+          </div>
+          <button className="btn" type="submit">Save LME</button>
+          <p className="chart-note">
+            {liveLme
+              ? `Live from westmetall.com right now: $${liveLme.usd_mt.toLocaleString('en-US')}/MT — confirm or edit before saving. `
+              : `Feed unreachable — enter from your broker. `}
+            {lastLme
+              ? `Last saved: $${lastLme.u.toLocaleString('en-US')}/MT on ${lastLme.d} (${lastLme.s}).`
+              : 'No LME saved yet.'}
+          </p>
         </form>
       )}
 

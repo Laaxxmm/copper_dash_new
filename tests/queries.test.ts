@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { destroyTestDb, seedFixtures, useTestDb, type Fixtures } from './helpers';
 import {
-  alerts, bookings, bookingsSummary, cspToday, customerProfit, dealMargins, invoices,
+  alerts, bookings, bookingsSummary, cspToday, customerProfit, dealMargins, dnplDeadline, invoices,
   moneySummary, monthlyTrade, partyLedger, partySummaries, receivableAging,
   supplierScorecard, truckSummary, trucks, typicalSellRate, unpricedExposure, whereToBuy,
 } from '@/lib/queries';
@@ -171,5 +171,15 @@ describe('alerts', () => {
     const titles = alerts().map((a) => a.title);
     expect(titles.some((t) => t.includes('Customer X payment late by 65 days'))).toBe(true);
     expect(titles.some((t) => t.includes('SB-002: 3 MT lifted but price not fixed'))).toBe(true);
+  });
+});
+
+describe('DNPL pricing deadline', () => {
+  it('prices first-half lots by month-end, second-half lots by the 15th of next month', () => {
+    expect(dnplDeadline('2026-07-03')).toBe('2026-07-31'); // 1st–15th → month end
+    expect(dnplDeadline('2026-07-15')).toBe('2026-07-31'); // boundary stays first-half
+    expect(dnplDeadline('2026-07-16')).toBe('2026-08-15'); // 16th → 15th next month
+    expect(dnplDeadline('2026-12-20')).toBe('2027-01-15'); // year rollover
+    expect(dnplDeadline('2026-02-10')).toBe('2026-02-28'); // short month end
   });
 });

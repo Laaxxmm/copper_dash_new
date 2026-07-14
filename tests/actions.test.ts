@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { addBooking, addFixation, addLifting, addParty, addPayment, saveCsp, updateTruck } from '@/lib/actions';
+import { addBooking, addFixation, addLifting, addParty, addPayment, saveCsp, saveLme, updateTruck } from '@/lib/actions';
 import { all, get, run } from '@/lib/db';
 
 const fd = (fields: Record<string, string | number>) => {
@@ -166,5 +166,19 @@ describe('saveCsp', () => {
   it('rejects a price that cannot be ₹/MT', async () => {
     const url = await endsAt(saveCsp, { date: '2026-07-12', price: 900 });
     expect(isError(url)).toBe(true);
+  });
+});
+
+describe('saveLme', () => {
+  it('upserts the day LME as a confirmed manual value', async () => {
+    const url = await endsAt(saveLme, { date: '2026-07-12', usd_mt: 13500 });
+    expect(url).toBe('/where-to-buy');
+    await endsAt(saveLme, { date: '2026-07-12', usd_mt: 13620 });
+    expect(all(`SELECT usd_mt, source FROM lme_prices WHERE price_date = '2026-07-12'`))
+      .toEqual([{ usd_mt: 13620, source: 'manual' }]);
+  });
+
+  it('rejects a value that cannot be US$/MT', async () => {
+    expect(isError(await endsAt(saveLme, { date: '2026-07-12', usd_mt: 135 }))).toBe(true);
   });
 });

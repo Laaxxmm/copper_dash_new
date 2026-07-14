@@ -65,6 +65,17 @@ export async function saveCsp(fd: FormData) {
   redirect('/');
 }
 
+// ---------- LME base (manual-first; westmetall feed only pre-fills, never auto-writes) ----------
+export async function saveLme(fd: FormData) {
+  const date = str(fd, 'date') || today();
+  const usd = num(fd, 'usd_mt');
+  if (usd < 3000 || usd > 40000) fail('lme', 'LME looks wrong — enter US$ per tonne (e.g. 13250).');
+  run(`INSERT INTO lme_prices (price_date, usd_mt, source) VALUES (?, ?, 'manual')
+       ON CONFLICT(price_date) DO UPDATE SET usd_mt = excluded.usd_mt, source = 'manual'`, date, usd);
+  refresh();
+  redirect('/where-to-buy');
+}
+
 // ---------- booking ----------
 export async function addBooking(fd: FormData) {
   const kind = str(fd, 'kind') === 'SALE' ? 'SALE' : 'PURCHASE';
