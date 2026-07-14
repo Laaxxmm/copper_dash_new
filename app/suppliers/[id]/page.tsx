@@ -117,7 +117,7 @@ export default async function SupplierPage({ params }: { params: Promise<{ id: s
                 <tbody>
                   {orders.map((o) => (
                     <tr key={o.id}>
-                      <td className="mono">{o.booking_no}</td>
+                      <td className="mono"><Link href={`/orders/${encodeURIComponent(o.booking_no)}`} style={{ color: 'var(--accent)', fontWeight: 700 }}>{o.booking_no}</Link></td>
                       <td>{dateShort(o.booking_date)}</td>
                       <td>{mt(o.qty_mt)}</td>
                       <td>{BASIS_LABEL[o.pricing_basis] ?? o.pricing_basis}</td>

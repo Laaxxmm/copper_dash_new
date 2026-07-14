@@ -691,6 +691,46 @@ export function orderList(flt: OrderFilters): OrderRow[] {
      ORDER BY b.booking_date DESC, b.id DESC`, ...p);
 }
 
+// ---------- single order detail (Phase D) ----------
+export type OrderDetail = {
+  id: number; booking_no: string; booking_date: string; supplier_id: number; supplier: string;
+  supplier_phone: string | null; product_desc: string | null; qty_mt: number; pricing_basis: string;
+  premium_inr_mt: number; avg_start: string | null; avg_end: string | null; lift_by_date: string | null;
+  status: string; notes: string | null; linked_booking_no: string | null;
+  fixed_qty: number; avg_rate: number | null; lifted_qty: number; billed: number;
+};
+export type OrderFixation = { fixation_date: string; qty_mt: number; price_inr_mt: number; reference: string; note: string | null };
+export type OrderLifting = {
+  id: number; dispatch_date: string; qty_mt: number; truck_no: string | null; transporter: string | null;
+  eway_bill_no: string | null; dispatch_weight_kg: number | null; received_weight_kg: number | null; status: string;
+};
+
+/** One purchase order and only its own events — the fixations and liftings booked against it. */
+export function orderDetail(bookingNo: string): { order: OrderDetail; fixations: OrderFixation[]; liftings: OrderLifting[] } | null {
+  const order = get<OrderDetail>(
+    `SELECT b.id, b.booking_no, b.booking_date, p.id supplier_id, p.name supplier, p.phone supplier_phone,
+            pr.description product_desc, b.qty_mt, b.pricing_basis, b.premium_inr_mt,
+            b.avg_start, b.avg_end, b.lift_by_date, b.status, b.notes,
+            lb.booking_no linked_booking_no,
+            IFNULL(f.q, 0) fixed_qty, f.rate avg_rate, IFNULL(l.q, 0) lifted_qty, IFNULL(i.billed, 0) billed
+     FROM bookings b JOIN parties p ON p.id = b.party_id
+     LEFT JOIN products pr ON pr.id = b.product_id
+     LEFT JOIN bookings lb ON lb.id = b.linked_booking_id
+     LEFT JOIN ${FIX_AGG} f ON f.booking_id = b.id
+     LEFT JOIN ${LIFT_AGG} l ON l.booking_id = b.id
+     LEFT JOIN (SELECT booking_id, SUM(total_amount) billed FROM invoices GROUP BY booking_id) i ON i.booking_id = b.id
+     WHERE b.kind = 'PURCHASE' AND b.booking_no = ?`, bookingNo);
+  if (!order) return null;
+  const fixations = all<OrderFixation>(
+    `SELECT fixation_date, qty_mt, price_inr_mt, reference, note FROM price_fixations
+     WHERE booking_id = ? ORDER BY fixation_date, id`, order.id);
+  const liftings = all<OrderLifting>(
+    `SELECT id, dispatch_date, qty_mt, truck_no, transporter, eway_bill_no,
+            dispatch_weight_kg, received_weight_kg, status FROM liftings
+     WHERE booking_id = ? ORDER BY dispatch_date, id`, order.id);
+  return { order, fixations, liftings };
+}
+
 // ---------- supplier detail page (Phase C) ----------
 export type SupplierDetail = {
   id: number; name: string; city: string | null; phone: string | null; email: string | null;

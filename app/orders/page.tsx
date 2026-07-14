@@ -109,7 +109,7 @@ export default async function OrdersPage({ searchParams }: {
                   <tbody>
                     {rows.map((r) => (
                       <tr key={r.id}>
-                        <td className="mono">{r.booking_no}</td>
+                        <td className="mono"><Link href={`/orders/${encodeURIComponent(r.booking_no)}`} style={{ color: 'var(--accent)', fontWeight: 700 }}>{r.booking_no}</Link></td>
                         <td>{dateShort(r.booking_date)}</td>
                         <td><Link href={`/suppliers/${r.supplier_id}`} className="cell-main" style={{ color: 'var(--ink)' }}>{r.supplier}</Link></td>
                         <td>{r.product_desc ?? '—'}</td>
