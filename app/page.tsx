@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { PageHead, Tile } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
-import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard, alerts, basisAlerts, profitability, customerProfitability } from '@/lib/queries';
+import PriorityHero from '@/components/PriorityHero';
+import SupplierCarousel from '@/components/SupplierCarousel';
+import { monthlyPlan, costOfPurchase, unpricedExposure, supplierScorecard, alerts, basisAlerts, profitability, customerProfitability, collectionsSummary } from '@/lib/queries';
 import { copperNews, timeAgo, liveLme } from '@/lib/market';
 import { lmeStrip } from '@/lib/pricing';
 import { mt, inr, monthLabel, today } from '@/lib/format';
@@ -27,11 +29,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const attention = [...basisAlerts(), ...alerts()].sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 8);
   const pnl = profitability(month);
   const topCustomers = customerProfitability(month).slice(0, 5);
+  const collect = collectionsSummary();
+  const hero = collect.overdue > 1
+    ? { tone: 'urgent' as const, label: 'Overdue — collect now', amount: inr(collect.overdue), sub: `past the credit period · ${inr(collect.total)} due within the week across ${collect.count} bill${collect.count > 1 ? 's' : ''}.`, ctaHref: '/sales', ctaLabel: 'Review collections' }
+    : collect.count > 0
+      ? { tone: 'due' as const, label: 'To collect this week', amount: inr(collect.total), sub: `from ${collect.count} bill${collect.count > 1 ? 's' : ''} due within 7 days. Chase them before they slip overdue.`, ctaHref: '/sales', ctaLabel: 'Review collections' }
+      : { tone: 'calm' as const, label: 'Nothing urgent today', amount: 'All clear', sub: 'No collections due this week. Keep the flow moving — set targets, send POs, log lifts.', ctaHref: '/sales', ctaLabel: 'Open Sales' };
 
   return (
     <>
       <AutoRefresh seconds={120} />
-      <PageHead title="Dashboard" sub="This month's plan against what's actually moving — targets, lifting, cost and risk." />
+      <PageHead title="Dashboard" sub="The one thing that needs you today, then the month's numbers." />
+
+      <PriorityHero {...hero} />
 
       <form className="month-pick" method="get">
         <label>Month <input type="month" name="month" defaultValue={month} /></label>
@@ -95,40 +105,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         />
       </div>
 
-      <div className="section-gap">
-        <div className="section-title">Suppliers this month — target vs lifted</div>
-        {plan.length === 0 ? (
+      {plan.length === 0 ? (
+        <div className="section-gap">
+          <div className="section-title">Suppliers this month — target vs lifted</div>
           <div className="card card-pad muted">
             No plan for {monthLabel(month)} yet. Set monthly targets per supplier on <Link href="/suppliers" style={{ fontWeight: 700 }}>Suppliers →</Link>
           </div>
-        ) : (
-          <div className="grid kpi-grid">
-            {plan.map((r) => {
-              const p = pct(r.lifted_mt, r.target_mt || r.agreed_mt);
-              return (
-                <Link key={r.supplier_id} href={`/suppliers/${r.supplier_id}`} className="card card-pad kpi-card">
-                  <div className="kpi-head">
-                    <span className="kpi-name">{r.supplier}</span>
-                    <span className="rank-pill">{r.manual_rank ? `L${r.manual_rank}` : '—'}</span>
-                  </div>
-                  <div className="kpi-nums">
-                    <span><b>{mt(r.target_mt)}</b><i>target</i></span>
-                    <span><b>{mt(r.agreed_mt)}</b><i>agreed</i></span>
-                    <span><b>{mt(Math.round(r.lifted_mt * 10) / 10)}</b><i>lifted</i></span>
-                  </div>
-                  <span className="pipe-bar" style={{ height: 8 }}>
-                    <span className="pipe-fill" style={{ width: `${p}%`, background: p >= 100 ? 'var(--good)' : 'var(--copper)' }} />
-                  </span>
-                  <div className="kpi-foot">
-                    <span>{p}% of {r.target_mt > 0 ? 'target' : 'agreed'}</span>
-                    <span>{r.avg_cost_kg ? `avg ₹${r.avg_cost_kg.toFixed(1)}/kg` : 'no lift priced'}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <SupplierCarousel rows={plan} />
+      )}
 
       {topCustomers.length > 0 && (
         <div className="section-gap">
