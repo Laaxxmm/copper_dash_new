@@ -121,6 +121,8 @@ export function migrate(db: DatabaseSync) {
   if (!colset('parties').has('manual_rank')) db.prepare(`ALTER TABLE parties ADD COLUMN manual_rank INTEGER`).run();
   if (!colset('parties').has('mail_keywords')) db.prepare(`ALTER TABLE parties ADD COLUMN mail_keywords TEXT`).run();
   if (!colset('supplier_terms').has('default_basis')) db.prepare(`ALTER TABLE supplier_terms ADD COLUMN default_basis TEXT DEFAULT 'DAY'`).run();
+  if (colset('email_captures').size && !colset('email_captures').has('matched_supplier_id')) db.prepare(`ALTER TABLE email_captures ADD COLUMN matched_supplier_id INTEGER`).run();
+  if (colset('email_captures').size && !colset('email_captures').has('matched_product_id')) db.prepare(`ALTER TABLE email_captures ADD COLUMN matched_product_id INTEGER`).run();
   if (colset('allocations').size && !colset('allocations').has('sent_at')) db.prepare(`ALTER TABLE allocations ADD COLUMN sent_at TEXT`).run();
 
   const insP = db.prepare(`INSERT OR IGNORE INTO products (type, size_mm, description) VALUES (?,?,?)`);

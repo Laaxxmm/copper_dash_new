@@ -5,7 +5,7 @@ class Redirected extends Error { constructor(public url: string) { super(url); }
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Redirected(u); } }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { parseDoc, pendingCaptures } from '@/lib/capture';
+import { parseDoc, pendingCaptures, matchSupplier, detectProductId, poByReference } from '@/lib/capture';
 import { captureEmail, confirmCapture } from '@/lib/capture-actions';
 import { products } from '@/lib/pricing';
 import { get, run } from '@/lib/db';
@@ -93,5 +93,49 @@ describe('capture → match → confirm', () => {
     await fire(captureEmail, { text: PI.replace('6731772.42', '6000000.00') });
     const cap = pendingCaptures().find((c) => c.matched_requirement_id === reqId)!;
     expect(cap.status).toBe('MISMATCH');
+  });
+});
+
+describe('supplier mailbox pipeline (revamp)', () => {
+  let sid: number, pid: number;
+  beforeAll(() => {
+    useTestDb();
+    pid = products().find((p) => p.type === 'ROD' && p.size_mm === 8)!.id;
+    sid = Number(run(`INSERT INTO parties (name,type,email,mail_keywords) VALUES ('Savli Copper','SUPPLIER','sales@savli.com','metrod, scppl')`).lastInsertRowid);
+    run(`INSERT INTO lme_prices (price_date, usd_mt) VALUES (date('now'), 13508)`);
+    run(`INSERT INTO fx_rates (rate_date, basis, usd_inr) VALUES (date('now'),'RBI_TT',95.71)`);
+  });
+  afterAll(destroyTestDb);
+
+  it('matches a supplier by email domain, keyword, then name', () => {
+    expect(matchSupplier('from purchasing@savli.com ...')?.supplier_id).toBe(sid);
+    expect(matchSupplier('...as per SCPPL terms...')?.how).toContain('keyword');
+    expect(matchSupplier('order to Savli warehouse')?.how).toBe('name');
+    expect(matchSupplier('nothing relevant here')).toBeNull();
+  });
+
+  it('detects the product from the text', () => {
+    expect(detectProductId('8 mm CC copper rod, 5 MT')).toBe(pid);
+    expect(detectProductId('no product mentioned')).toBeNull();
+  });
+
+  it('confirming a domain-matched PI logs the agreed quantity for the month', async () => {
+    await fire(captureEmail, { text: 'PROFORMA INVOICE PI No PI-88 from sales@savli.com — 8 mm CC copper rod 6 MT' });
+    const cap = pendingCaptures().find((c) => c.matched_supplier_id === sid)!;
+    expect(cap.product_desc).toContain('8 mm');
+    await fire(confirmCapture, { capture_id: cap.id });
+    const t = get<{ agreed_mt: number }>(`SELECT agreed_mt FROM supplier_targets WHERE supplier_id=? AND product_id=? AND month=?`, sid, pid, today().slice(0, 7))!;
+    expect(t.agreed_mt).toBe(6);
+    expect(pendingCaptures().find((c) => c.id === cap.id)).toBeUndefined();
+  });
+
+  it('a cancellation naming a PO cancels that PO and reverses its cost', async () => {
+    run(`INSERT INTO purchase_orders (po_no,supplier_id,product_id,month,qty_mt,rate_inr_kg,base_amount,tax_amount,gross_amount,status,created_date)
+         VALUES ('PO-777',?,?,?,5,1000,5000000,900000,5900000,'SENT',?)`, sid, pid, today().slice(0, 7), today());
+    expect(poByReference('PO-777')?.po_no).toBe('PO-777');
+    await fire(captureEmail, { text: 'Please CANCEL our Purchase Order PO-777 from sales@savli.com' });
+    const cap = pendingCaptures().find((c) => c.doc_type === 'CANCEL')!;
+    await fire(confirmCapture, { capture_id: cap.id });
+    expect(get<{ status: string }>(`SELECT status FROM purchase_orders WHERE po_no='PO-777'`)!.status).toBe('CANCELLED');
   });
 });

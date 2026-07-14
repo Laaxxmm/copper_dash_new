@@ -2,8 +2,9 @@ import { PageHead } from '@/components/ui';
 import { CopperIngots } from '@/components/CopperArt';
 import EraseForm from '@/components/EraseForm';
 import { logout } from '@/lib/auth-actions';
-import { reloadDemoData, saveModules } from '@/lib/settings-actions';
+import { reloadDemoData, saveModules, saveMailMap, saveGmail } from '@/lib/settings-actions';
 import { ADMIN_USER } from '@/lib/auth';
+import { getSetting } from '@/lib/company';
 import { all } from '@/lib/db';
 import { OPTIONAL_MODULES, enabledModules } from '@/lib/modules';
 
@@ -18,6 +19,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   );
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const enabled = enabledModules();
+  const suppliers = all<{ id: number; name: string; email: string | null; mail_keywords: string | null }>(
+    `SELECT id, name, email, mail_keywords FROM parties WHERE type='SUPPLIER' ORDER BY (manual_rank IS NULL), manual_rank, name`);
+  const gmail = { address: getSetting('mail:address'), host: getSetting('mail:imap_host', 'imap.gmail.com'), poll: getSetting('mail:poll_min', '10'), hasPw: !!getSetting('mail:app_password') };
 
   return (
     <>
@@ -27,6 +31,44 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       {done === 'demo' ? <div className="notice good">Demo data reloaded.</div> : null}
       {done === 'modules' ? <div className="notice good">Menu updated.</div> : null}
       {err === 'confirm' ? <div className="notice bad">Type ERASE exactly to confirm — nothing was deleted.</div> : null}
+      {done === 'mailmap' ? <div className="notice good">Mailbox map saved.</div> : null}
+      {done === 'gmail' ? <div className="notice good">Gmail connection saved. Live pull activates once the fetch worker is enabled.</div> : null}
+
+      <form action={saveGmail} className="card card-pad section-gap">
+        <div className="card-title">Mailbox — connect Gmail (auto-pull PI / PO)</div>
+        <p style={{ fontSize: 14, color: 'var(--ink-2)', marginBottom: 12 }}>
+          Use a Gmail <b>app password</b> (not your login password). Incoming PIs/POs are parsed and staged in the Inbox for you to confirm — never posted automatically. {gmail.hasPw ? '✓ An app password is saved.' : 'No app password saved yet.'}
+        </p>
+        <div className="form-grid">
+          <label>Gmail address<input name="address" type="email" defaultValue={gmail.address} placeholder="purchase@yourfirm.com" /></label>
+          <label>App password<input name="app_password" type="password" placeholder={gmail.hasPw ? '•••••••• (saved)' : '16-char app password'} /></label>
+          <label>IMAP host<input name="imap_host" type="text" defaultValue={gmail.host} /></label>
+          <label>Check every (minutes)<input name="poll_min" type="number" min="1" defaultValue={gmail.poll} /></label>
+        </div>
+        <button type="submit" className="btn btn-sm">Save Gmail connection</button>
+      </form>
+
+      <form action={saveMailMap} className="card card-pad section-gap">
+        <div className="card-title">Mailbox map — which supplier is which sender</div>
+        <p style={{ fontSize: 14, color: 'var(--ink-2)', marginBottom: 12 }}>
+          Set each supplier&apos;s sender <b>email</b> (the domain routes their mail) and any <b>keywords</b> (comma-separated) that appear in their PIs. The Inbox uses these to match incoming documents.
+        </p>
+        <div className="table-wrap">
+          <table className="data compact">
+            <thead><tr><th>Supplier</th><th>Sender email</th><th>Keywords</th></tr></thead>
+            <tbody>
+              {suppliers.map((s) => (
+                <tr key={s.id}>
+                  <td>{s.name}<input type="hidden" name="sid" value={s.id} /></td>
+                  <td><input name={`email_${s.id}`} type="email" defaultValue={s.email ?? ''} placeholder="sales@supplier.com" style={{ width: '100%', padding: '7px 8px', borderRadius: 8, border: '1px solid var(--line)', background: '#fff' }} /></td>
+                  <td><input name={`kw_${s.id}`} type="text" defaultValue={s.mail_keywords ?? ''} placeholder="e.g. savli, metrod" style={{ width: '100%', padding: '7px 8px', borderRadius: 8, border: '1px solid var(--line)', background: '#fff' }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button type="submit" className="btn btn-sm" style={{ marginTop: 12 }}>Save mailbox map</button>
+      </form>
 
       <form action={saveModules} className="card card-pad section-gap">
         <div className="card-title">Menu — show only what you use</div>

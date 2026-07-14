@@ -14,7 +14,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
     <>
       <PageHead
         title="Inbox"
-        sub="Paste a supplier's PI or PO email. It's read, matched to your enquiry and staged here — nothing is booked until you confirm."
+        sub="Paste a supplier's PI or PO. It's read, matched to the supplier by email domain / keyword, and staged — nothing posts until you confirm."
       />
       {err ? <div className="form-error">⚠ {err}</div> : null}
 
@@ -29,19 +29,21 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
 
       <div className="card table-wrap section-gap">
         <div className="card-pad" style={{ paddingBottom: 0 }}>
-          <div className="card-title">Review queue — confirm to book, or reject</div>
+          <div className="card-title">Review queue — confirm to post, or reject</div>
         </div>
         {rows.length === 0 ? (
-          <p className="muted" style={{ padding: '4px 20px 20px' }}>Nothing waiting. Paste a PI above to test the capture.</p>
+          <p className="muted" style={{ padding: '4px 20px 20px' }}>Nothing waiting. Paste a PI above, or set the mailbox map in <Link href="/settings" style={{ fontWeight: 700 }}>Settings</Link>.</p>
         ) : (
           <table className="data">
             <thead>
-              <tr><th>Document</th><th>Matched enquiry</th><th className="num">Rate ₹/kg</th><th>Check</th><th></th></tr>
+              <tr><th>Document</th><th>Matched to</th><th className="num">Rate ₹/kg</th><th>Check</th><th></th></tr>
             </thead>
             <tbody>
               {rows.map((c) => {
                 const p = JSON.parse(c.extracted_json) as ParsedDoc;
                 const isCancel = c.doc_type === 'CANCEL';
+                const toSupplier = c.matched_supplier_id != null;
+                const toAlloc = c.matched_allocation_id != null;
                 return (
                   <tr key={c.id}>
                     <td>
@@ -50,9 +52,12 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                       <div className="cell-sub">{p.qty_mt != null ? mt(p.qty_mt) : '— MT'}{p.stated_total != null ? ` · ${inr(p.stated_total)}` : ''}</div>
                     </td>
                     <td>
-                      {c.req_no
-                        ? <><Link href={`/requirements/${c.matched_requirement_id}`} className="cell-main mono" style={{ color: 'var(--copper-text)' }}>{c.req_no}</Link><div className="cell-sub">{c.supplier}</div></>
-                        : <span className="neg">no match</span>}
+                      {toSupplier
+                        ? <><Link href={`/suppliers/${c.matched_supplier_id}`} className="cell-main" style={{ color: 'var(--copper-text)' }}>{c.supplier}</Link><div className="cell-sub">{c.product_desc ?? 'product?'}</div></>
+                        : c.req_no
+                          ? <><Link href={`/requirements/${c.matched_requirement_id}`} className="cell-main mono" style={{ color: 'var(--copper-text)' }}>{c.req_no}</Link><div className="cell-sub">{c.supplier}</div></>
+                          : isCancel && c.reference_no ? <span className="cell-sub">PO {c.reference_no}</span>
+                            : <span className="neg">no match</span>}
                     </td>
                     <td className="num">{p.computed_rate_inr_kg != null ? `₹${p.computed_rate_inr_kg.toFixed(2)}` : '—'}</td>
                     <td>
@@ -62,14 +67,20 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
                           : p.computed_rate_inr_kg != null ? <span className="pos">rate recomputes ✓</span> : <span className="muted">rate not in text</span>}
                     </td>
                     <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                      {c.matched_allocation_id && (
+                      {(isCancel || toSupplier || toAlloc) && (
                         <form action={confirmCapture} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <input type="hidden" name="capture_id" value={c.id} />
-                          {!isCancel && (
+                          {!isCancel && toSupplier && (
+                            <input name="qty" type="number" step="0.001" defaultValue={p.qty_mt ?? undefined}
+                              placeholder="MT" style={{ width: 80, padding: '7px 8px', borderRadius: 8, border: '1px solid #e2d9ca', background: 'var(--input)' }} />
+                          )}
+                          {!isCancel && !toSupplier && toAlloc && (
                             <input name="rate" type="number" step="0.01" defaultValue={p.computed_rate_inr_kg ?? undefined}
                               placeholder="₹/kg" style={{ width: 90, padding: '7px 8px', borderRadius: 8, border: '1px solid #e2d9ca', background: 'var(--input)' }} />
                           )}
-                          <button type="submit" className="btn-order" style={{ cursor: 'pointer' }}>{isCancel ? 'Confirm cancel' : 'Confirm & book'}</button>
+                          <button type="submit" className="btn-order" style={{ cursor: 'pointer' }}>
+                            {isCancel ? 'Confirm cancel' : toSupplier ? 'Confirm — log agreed' : 'Confirm & book'}
+                          </button>
                         </form>
                       )}
                       <form action={rejectCapture}>
@@ -86,9 +97,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       </div>
 
       <div className="help">
-        <b>Confirm-first, always.</b> The rate is recomputed from the PI&apos;s own LME, premium, factor and exchange and
-        checked against its printed total — a gap flags <b>amount mismatch</b> and never posts on its own. A
-        &quot;cancelled&quot; email cancels the matched leg. Live mailbox reading connects later; for now paste the text.
+        <b>Confirm-first, always.</b> An incoming PI is matched to a supplier by email domain or keyword (set these in <Link href="/settings" style={{ fontWeight: 700 }}>Settings</Link>); confirming logs the <b>agreed quantity</b> against that supplier&apos;s month. A <b>cancellation</b> email that names a PO number cancels that PO and reverses its cost. Live Gmail pull connects in Settings; for now paste the text.
       </div>
     </>
   );

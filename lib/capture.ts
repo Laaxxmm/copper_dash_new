@@ -82,21 +82,79 @@ export function matchAllocation(parsed: ParsedDoc, rawText: string): Match | nul
   return pool.find((e) => parsed.qty_mt != null && Math.abs(e.qty_mt - parsed.qty_mt) <= 0.5) ?? null;
 }
 
+export type SupplierMatch = { supplier_id: number; supplier: string; how: string };
+
+/** Map an incoming PI/PO to a supplier — by the sender's email domain, then a
+ *  configured keyword, then the firm name. This is the mailbox "which supplier
+ *  is this from" step; the domain/keyword map lives on the supplier record. */
+export function matchSupplier(rawText: string): SupplierMatch | null {
+  const low = rawText.toLowerCase();
+  const domains = [...rawText.matchAll(/@([a-z0-9.-]+\.[a-z]{2,})/gi)].map((m) => m[1].toLowerCase());
+  const suppliers = all<{ id: number; name: string; email: string | null; mail_keywords: string | null }>(
+    `SELECT id, name, email, mail_keywords FROM parties WHERE type = 'SUPPLIER'`);
+  // 1) email domain
+  for (const s of suppliers) {
+    const d = s.email?.split('@')[1]?.toLowerCase();
+    if (d && domains.includes(d)) return { supplier_id: s.id, supplier: s.name, how: `domain @${d}` };
+  }
+  // 2) configured keyword
+  for (const s of suppliers) {
+    const kws = (s.mail_keywords ?? '').split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
+    const hit = kws.find((k) => low.includes(k));
+    if (hit) return { supplier_id: s.id, supplier: s.name, how: `keyword "${hit}"` };
+  }
+  // 3) firm name (first significant word)
+  for (const s of suppliers) {
+    const word = s.name.split(/[ (]/)[0].toLowerCase();
+    if (word.length > 3 && low.includes(word)) return { supplier_id: s.id, supplier: s.name, how: 'name' };
+  }
+  return null;
+}
+
+/** Guess the product from the document text (size in mm + wire/rod). */
+export function detectProductId(rawText: string): number | null {
+  const t = rawText.toLowerCase();
+  const isRod = /\brod\b/.test(t);
+  const isWire = /\bwire\b/.test(t);
+  const sizeM = t.match(/([\d.]+)\s*mm/);
+  const size = sizeM ? parseFloat(sizeM[1]) : null;
+  const type = isRod ? 'ROD' : isWire ? 'WIRE' : null;
+  if (size != null && type) {
+    const row = get<{ id: number }>(`SELECT id FROM products WHERE type = ? AND ABS(size_mm - ?) < 0.01`, type, size);
+    if (row) return row.id;
+  }
+  if (type) return get<{ id: number }>(`SELECT id FROM products WHERE type = ? ORDER BY size_mm LIMIT 1`, type)?.id ?? null;
+  return null;
+}
+
+/** Find a SENT purchase order referenced by a cancellation (by PO number). */
+export function poByReference(ref: string | null): { id: number; po_no: string } | null {
+  if (!ref) return null;
+  return get<{ id: number; po_no: string }>(
+    `SELECT id, po_no FROM purchase_orders WHERE status = 'SENT' AND UPPER(po_no) = UPPER(?)`, ref) ?? null;
+}
+
 export type CaptureRow = {
   id: number; received_at: string; doc_type: string; reference_no: string | null; status: string;
   matched_allocation_id: number | null; matched_requirement_id: number | null; req_no: string | null;
-  supplier: string | null; extracted_json: string; raw_ref: string;
+  matched_supplier_id: number | null; supplier: string | null;
+  matched_product_id: number | null; product_desc: string | null;
+  extracted_json: string; raw_ref: string;
 };
 
 export function pendingCaptures(): CaptureRow[] {
   return all<CaptureRow>(
     `SELECT c.id, c.received_at, c.doc_type, c.reference_no, c.status,
-            c.matched_allocation_id, c.matched_requirement_id, r.req_no, p.name supplier,
+            c.matched_allocation_id, c.matched_requirement_id, r.req_no,
+            c.matched_supplier_id, IFNULL(sp.name, ap.name) supplier,
+            c.matched_product_id, pr.description product_desc,
             c.extracted_json, c.raw_ref
      FROM email_captures c
      LEFT JOIN allocations a ON a.id = c.matched_allocation_id
      LEFT JOIN requirements r ON r.id = c.matched_requirement_id
-     LEFT JOIN parties p ON p.id = a.supplier_id
+     LEFT JOIN parties ap ON ap.id = a.supplier_id
+     LEFT JOIN parties sp ON sp.id = c.matched_supplier_id
+     LEFT JOIN products pr ON pr.id = c.matched_product_id
      WHERE c.status IN ('PENDING','MISMATCH')
      ORDER BY c.id DESC`);
 }
