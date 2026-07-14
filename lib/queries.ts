@@ -396,20 +396,21 @@ export function party(id: number) {
     `SELECT p.*, ${PARTY_SUMMARY_FIELDS} FROM parties p WHERE p.id = ?`, id);
 }
 
-/** Chronological ledger: invoices (debit) and payments (credit). */
+/** Chronological ledger: invoices (debit) and payments (credit).
+ *  Uses anonymous `?` params (Railway's Node 22 node:sqlite mis-binds numbered `?1`). */
 export function partyLedger(id: number) {
   return all<{ entry_date: string; type: string; ref: string; debit: number | null; credit: number | null; detail: string }>(
     `SELECT * FROM (
        SELECT i.invoice_date entry_date, 'INVOICE' type, i.invoice_no ref,
               i.total_amount debit, NULL credit,
               ROUND(i.qty_mt, 1) || ' MT @ ₹' || CAST(ROUND(i.rate_inr_mt) AS INTEGER) detail
-       FROM invoices i WHERE i.party_id = ?1
+       FROM invoices i WHERE i.party_id = ?
        UNION ALL
        SELECT pm.payment_date, 'PAYMENT', IFNULL(pm.utr_no, pm.mode),
               NULL, pm.amount,
               pm.mode || IFNULL(' · ' || pm.bank, '')
-       FROM payments pm WHERE pm.party_id = ?1
-     ) ORDER BY entry_date, type DESC`, id);
+       FROM payments pm WHERE pm.party_id = ?
+     ) ORDER BY entry_date, type DESC`, id, id);
 }
 
 // ---------- alerts (Today page) ----------

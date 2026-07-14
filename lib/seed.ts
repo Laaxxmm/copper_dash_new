@@ -298,14 +298,15 @@ export function seedDemo(db: DatabaseSync) {
   // (default grade 1.60 mm wire), pulled from each supplier's terms.
   const defProd = db.prepare(`SELECT id FROM products WHERE type='WIRE' AND size_mm=1.6`).get() as { id: number } | undefined;
   if (defProd) {
+    const pid = defProd.id;
     db.prepare(
       `UPDATE bookings SET
-         product_id = ?1,
-         premium_usd_mt = IFNULL((SELECT premium_usd_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0),
-         transaction_usd_mt = IFNULL((SELECT transaction_usd_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0),
-         factor_pct = IFNULL((SELECT factor_pct FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0),
-         handling_inr_mt = IFNULL((SELECT handling_inr_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?1), 0)
-       WHERE kind = 'PURCHASE'`).run(defProd.id);
+         product_id = ?,
+         premium_usd_mt = IFNULL((SELECT premium_usd_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?), 0),
+         transaction_usd_mt = IFNULL((SELECT transaction_usd_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?), 0),
+         factor_pct = IFNULL((SELECT factor_pct FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?), 0),
+         handling_inr_mt = IFNULL((SELECT handling_inr_mt FROM supplier_terms st WHERE st.supplier_id = bookings.party_id AND st.product_id = ?), 0)
+       WHERE kind = 'PURCHASE'`).run(pid, pid, pid, pid, pid);
   }
 
   // ---------- Phase 2 demo: requirements split across suppliers ----------

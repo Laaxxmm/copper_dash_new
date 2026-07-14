@@ -1,0 +1,10 @@
+[     340ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/parties/3:0
+[     660ms] An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.
+[   52243ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/api/report?type=ledger&party=3:0
+[  212569ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/parties/3:0
+[ 4396597ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/parties/3:0
+[ 4396791ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/parties/8:0
+[ 4396877ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/api/report?type=ledger&party=3:0
+[ 4538173ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/api/report?type=ledger&party=3&from=1999-01-01&to=1999-12-31:0
+[ 4538457ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/api/report?type=ledger&party=3:0
+[ 4538534ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://copperdashnew-production.up.railway.app/api/report?type=ledger&party=1:0

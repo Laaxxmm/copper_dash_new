@@ -142,12 +142,12 @@ function ledgerRows(partyId: number, from: string, to: string): Row[] {
     `SELECT * FROM (
        SELECT i.invoice_date entry_date, 'Bill' type, i.invoice_no ref, i.total_amount debit, NULL credit,
               ROUND(i.qty_mt,1) || ' MT @ ' || CAST(ROUND(i.rate_inr_mt) AS INTEGER) detail
-       FROM invoices i WHERE i.party_id = ?1
+       FROM invoices i WHERE i.party_id = ?
        UNION ALL
        SELECT pm.payment_date, 'Payment', IFNULL(pm.utr_no, pm.mode), NULL, pm.amount,
               pm.mode || IFNULL(' / ' || pm.bank, '')
-       FROM payments pm WHERE pm.party_id = ?1
-     ) WHERE entry_date BETWEEN ?2 AND ?3 ORDER BY entry_date, type`, partyId, from, to,
+       FROM payments pm WHERE pm.party_id = ?
+     ) WHERE entry_date BETWEEN ? AND ? ORDER BY entry_date, type`, partyId, partyId, from, to,
   ).map((r) => {
     balance += ((r.debit as number) ?? 0) - ((r.credit as number) ?? 0);
     return {
