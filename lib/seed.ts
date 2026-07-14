@@ -5,7 +5,8 @@ import type { DatabaseSync } from 'node:sqlite';
 
 // Cleared on "erase all"; children first for FK safety. The `products` catalog
 // (wire/rod reference data) is intentionally NOT cleared.
-const TABLES = ['purchase_orders', 'supplier_targets', 'email_captures', 'allocations', 'requirements',
+const TABLES = ['sales_pi', 'sale_products', 'price_lines', 'price_templates', 'expenses',
+  'purchase_orders', 'supplier_targets', 'email_captures', 'allocations', 'requirements',
   'payments', 'invoices', 'liftings', 'price_fixations',
   'supplier_terms', 'bookings', 'fx_rates', 'lme_prices', 'csp_prices', 'parties'];
 

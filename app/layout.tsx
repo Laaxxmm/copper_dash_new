@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Spectral, Hanken_Grotesk, Spline_Sans_Mono } from 'next/font/google';
 import './globals.css';
 import Nav from '@/components/Nav';
+import SectionTabs from '@/components/SectionTabs';
 import { logout } from '@/lib/auth-actions';
 import { companyProfile } from '@/lib/company';
 import { dateLong, today } from '@/lib/format';
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </aside>
           <main className="main">
             <div className="topbar"><span className="topbar-date">{dateLong(today())}</span></div>
+            <SectionTabs />
             {children}
           </main>
         </div>

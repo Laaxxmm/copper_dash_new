@@ -71,6 +71,55 @@ const PHASE1_TABLES = [
      target_mt REAL NOT NULL DEFAULT 0,
      agreed_mt REAL NOT NULL DEFAULT 0,
      UNIQUE(supplier_id, product_id, month))`,
+  // Sales phase — reusable pricing templates (ordered cost-lines with operators).
+  `CREATE TABLE IF NOT EXISTS price_templates (
+     id INTEGER PRIMARY KEY,
+     name TEXT NOT NULL,
+     notes TEXT,
+     created_date TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS price_lines (
+     id INTEGER PRIMARY KEY,
+     template_id INTEGER NOT NULL REFERENCES price_templates(id),
+     seq INTEGER NOT NULL,
+     label TEXT NOT NULL,
+     kind TEXT NOT NULL CHECK (kind IN ('BUY_COST','FABRICATION','FIXED','PERCENT')),
+     operator TEXT NOT NULL CHECK (operator IN ('ADD','SUB','MUL','DIV','AVG')),
+     value REAL NOT NULL DEFAULT 0)`,
+  // Sales phase — a finished/resold product sold to a customer, priced via a template.
+  `CREATE TABLE IF NOT EXISTS sale_products (
+     id INTEGER PRIMARY KEY,
+     customer_id INTEGER NOT NULL REFERENCES parties(id),
+     name TEXT NOT NULL,
+     raw_product_id INTEGER REFERENCES products(id),
+     template_id INTEGER REFERENCES price_templates(id),
+     fabrication_cost REAL NOT NULL DEFAULT 0,
+     notes TEXT,
+     active INTEGER NOT NULL DEFAULT 1,
+     created_date TEXT NOT NULL)`,
+  // Sales phase — the proforma invoice we issue to a customer (mirrors purchase_orders).
+  `CREATE TABLE IF NOT EXISTS sales_pi (
+     id INTEGER PRIMARY KEY,
+     pi_no TEXT NOT NULL UNIQUE,
+     customer_id INTEGER NOT NULL REFERENCES parties(id),
+     sale_product_id INTEGER REFERENCES sale_products(id),
+     booking_id INTEGER REFERENCES bookings(id),
+     qty_mt REAL NOT NULL,
+     rate_inr_kg REAL NOT NULL,
+     base_amount REAL NOT NULL,
+     tax_amount REAL NOT NULL DEFAULT 0,
+     gross_amount REAL NOT NULL,
+     basis TEXT,
+     status TEXT NOT NULL DEFAULT 'SENT' CHECK (status IN ('SENT','CANCELLED')),
+     created_date TEXT NOT NULL,
+     cancelled_date TEXT)`,
+  // Sales phase — monthly overhead expenses (feed true profitability).
+  `CREATE TABLE IF NOT EXISTS expenses (
+     id INTEGER PRIMARY KEY,
+     month TEXT NOT NULL,
+     category TEXT NOT NULL,
+     amount REAL NOT NULL,
+     notes TEXT,
+     created_date TEXT NOT NULL)`,
   // Revamp — purchase orders we issue to suppliers (gross = committed cost of purchase).
   `CREATE TABLE IF NOT EXISTS purchase_orders (
      id INTEGER PRIMARY KEY,

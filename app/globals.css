@@ -666,3 +666,9 @@ a.btn, a.btn-sm { color: #fff; }
 
 /* ---------- Revamp Phase F: mail pull bar ---------- */
 .mail-pull { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--wash-2); border: 1px solid var(--pill-line); border-radius: 12px; padding: 10px 16px; font-size: 13.5px; color: var(--ink-2); }
+
+/* ---------- Sales phase S1: section sub-tabs ---------- */
+.section-tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.stab { padding: 9px 15px; font-size: 14px; font-weight: 600; color: var(--ink-3); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.stab:hover { color: var(--ink); }
+.stab.on { color: var(--copper-text); border-bottom-color: var(--copper); }
