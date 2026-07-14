@@ -36,15 +36,15 @@ export default function Nav() {
   const pathname = usePathname();
   return (
     <>
-      <Link href="/add" className="nav-add">
+      <Link href="/add" className="nav-add" title="Add entry">
         <svg {...S} width={17} height={17}><path d="M12 5v14M5 12h14" /></svg>
-        Add entry
+        <span className="nav-label">Add entry</span>
       </Link>
       <nav>
         {LINKS.map((l) => (
-          <Link key={l.href} href={l.href} className={`nav-link${l.match(pathname) ? ' active' : ''}`}>
+          <Link key={l.href} href={l.href} className={`nav-link${l.match(pathname) ? ' active' : ''}`} title={l.label}>
             {l.icon}
-            {l.label}
+            <span className="nav-label">{l.label}</span>
           </Link>
         ))}
       </nav>

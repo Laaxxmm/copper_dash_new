@@ -3,47 +3,51 @@
    White cards on a warm canvas; copper accent; no gradients, no heavy shadows. */
 
 :root {
-  /* surfaces */
-  --canvas: #f4efe8;        /* main area */
-  --deep: #ede7dc;          /* body background */
-  --sidebar: #efe9df;
+  /* surfaces — warm editorial canvas, dark rail sidebar */
+  --canvas: #f4f1ea;        /* main area */
+  --deep: #efeae1;          /* body background */
+  --sidebar: #16211c;       /* dark rail */
+  --rail: #16211c;
   --card: #ffffff;
-  --line: #e7dfd2;
-  --line-soft: #efe9de;
-  --input: #fbf7f0;
-  --pill-line: #ddd3c4;
+  --line: #ece5d8;
+  --border: #ece5d8;
+  --line-soft: #f0ebe1;
+  --input: #faf7f0;
+  --pill-line: #e0d8c9;
 
   /* ink */
-  --ink: #211d18;
-  --ink-2: #4b443a;
-  --ink-3: #8a8175;
+  --ink: #1c221d;
+  --ink-2: #4a524a;
+  --ink-3: #6c736a;
+  --faint: #9aa197;
+  --muted: #6c736a;
 
-  /* brand */
-  --copper: #b0501f;
-  --copper-hover: #9c4419;
-  --copper-text: #a9491c;
-  --link-hover: #87390f;
-  --wash-1: #f5e3d6;        /* active nav, pills */
-  --wash-2: #fbf2ea;        /* hero banner */
+  /* accent (copper — tweakable in Settings) */
+  --accent: #bf5a24;
+  --copper: #bf5a24;
+  --copper-hover: #a54c1d;
+  --copper-text: #a54c1d;
+  --link-hover: #8f3f16;
+  --wash-1: #f6e7db;        /* active nav, pills */
+  --wash-2: #fbf2ea;        /* hero wash */
   --wash-3: #f3e2d2;
-  --hover: #e7e0d3;
+  --hover: #ece5d8;
 
-  /* status (reserved — never chart series) */
-  --good: #2f7d45;
-  --good-wash: #e6f0e4;
-  --warn: #c79a2e;
-  --warn-wash: #f7efd9;
-  --bad: #c0392b;
-  --bad-wash: #f9e5e1;
+  /* status language — green on-track, amber note, red urgent */
+  --good: #2f7d4f;  --success: #2f7d4f;  --good-wash: #e6f0e8;
+  --warn: #c98a1a;  --warning: #c98a1a;  --warn-wash: #f7efd9;
+  --bad: #c0392b;   --danger: #c0392b;   --bad-wash: #f9e5e1;
 
-  /* chart categorical — PRD copper + teal, validated (dataviz six checks) */
-  --cat-1: #b0501f;
-  --cat-2: #158c7b;
-  --cat-3: #5b5bd6;
-  --cat-4: #557a2e;
+  /* chart categorical */
+  --cat-1: #bf5a24;
+  --cat-2: #2f7d4f;
+  --cat-3: #3f5b8a;
+  --cat-4: #8a3b64;
 
   --radius: 16px;
+  --pad: 18px;              /* density: comfortable (compact → 13px) */
 }
+:root[data-density="compact"] { --pad: 13px; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -52,10 +56,11 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   background: var(--deep);
   color: var(--ink);
-  font-family: var(--font-body), 'Hanken Grotesk', system-ui, sans-serif;
-  font-size: 15.5px;
+  font-family: var(--font-body), 'Manrope', system-ui, sans-serif;
+  font-size: 15px;
   line-height: 1.5;
   min-height: 100vh;
+  font-variant-numeric: tabular-nums;   /* all figures line up */
 }
 
 a { color: var(--copper-text); text-decoration: none; }
@@ -703,3 +708,67 @@ a.btn, a.btn-sm { color: #fff; }
 .cb-over { color: var(--bad); font-weight: 600; }
 .cb-link { color: var(--copper-text); font-weight: 700; text-decoration: none; white-space: nowrap; }
 .cb-x { background: none; border: none; color: var(--ink-3); cursor: pointer; font-size: 14px; padding: 2px 6px; }
+
+/* ============================================================
+   Redesign R1 — foundation & shell (dark rail, collapse, crumbs)
+   ============================================================ */
+
+/* Serif display + Space-Grotesk figures inherit via the var swap;
+   nudge a couple of number classes to the tabular figure font. */
+.t-value, .kpi-nums b, .calc-rate, .po-h1, .tb-price b { font-family: var(--font-display), Georgia, serif; }
+.mono, .num, .cell-sub.mono-sm, .rank-pill, td.num, .kpi-nums b { font-variant-numeric: tabular-nums; }
+
+/* ---- dark rail sidebar ---- */
+.sidebar { width: 236px; background: var(--rail); border-right: none; padding: 20px 14px; transition: width 0.2s ease, padding 0.2s ease; }
+.brand-block { display: flex; align-items: flex-start; gap: 8px; position: relative; margin-bottom: 16px; padding-right: 2px; }
+.brand-txt { flex: 1; min-width: 0; }
+.brand { color: #f4f1ea; font-size: 21px; line-height: 1.1; padding: 2px 4px 0; }
+.brand .cu { color: #e08a4e; }
+.brand-sub { color: #7f8a80; padding: 5px 4px 0; }
+.brand-logo { max-width: 150px; max-height: 42px; }
+.sb-toggle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px; border: none; background: rgba(255,255,255,0.07); color: #b9c0b6; cursor: pointer; font-size: 14px; line-height: 1; transition: background 0.15s ease; }
+.sb-toggle:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+.nav-link { color: #b7beb4; border-radius: 9px; }
+.nav-link svg { opacity: 0.72; }
+.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-link.active { background: rgba(191,90,36,0.20); color: #f0a874; font-weight: 700; }
+.nav-link.active svg { opacity: 1; }
+.nav-foot { color: #7f8a80; }
+.nav-signout { border-color: rgba(255,255,255,0.16); color: #b7beb4; background: transparent; }
+.nav-signout:hover { border-color: var(--copper); color: #f0a874; background: rgba(255,255,255,0.04); }
+.nav-add { background: var(--copper); color: #fff; margin-bottom: 6px; }
+.nav-add:hover { background: var(--copper-hover); color: #fff; }
+
+/* ---- collapsed state (icon rail) ---- */
+.sidebar.collapsed { width: 66px; padding: 20px 10px; }
+.sidebar.collapsed .brand-block { justify-content: center; }
+.sidebar.collapsed .brand { flex: none; font-size: 22px; padding: 0; }
+.sidebar.collapsed .brand-sub,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-foot > div,
+.sidebar.collapsed .nav-add span { display: none; }
+.sidebar.collapsed .nav-link,
+.sidebar.collapsed .nav-add { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+.sidebar.collapsed .sb-toggle { position: absolute; top: -2px; right: -4px; }
+
+/* ---- breadcrumbs ---- */
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); font-weight: 600; }
+.crumbs a { color: var(--ink-3); text-decoration: none; }
+.crumbs a:hover { color: var(--copper-text); }
+.crumb-sep { color: var(--faint); }
+.crumbs .here { color: var(--ink); }
+
+/* ---- urgent banner (red strip) ---- */
+.collect-banner { background: #fbeae6; border: 1px solid #e7b3a8; border-left: 3px solid var(--bad); border-radius: 12px; }
+.collect-banner .cb-dot { background: var(--bad); box-shadow: 0 0 0 3px rgba(192,57,43,0.15); }
+.collect-banner.urgent { background: #fbe6e2; border-color: #e2a599; }
+
+@media (max-width: 980px) {
+  .sidebar { width: 66px; padding: 20px 10px; }
+  .sidebar .brand-sub, .sidebar .nav-label, .sidebar .nav-foot > div, .sidebar .nav-add span { display: none; }
+  .sidebar .nav-link, .sidebar .nav-add { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+  .sidebar .brand { flex: none; padding: 0; }
+  .sidebar .brand-block { justify-content: center; }
+}
