@@ -111,6 +111,28 @@ export function matchSupplier(rawText: string): SupplierMatch | null {
   return null;
 }
 
+/** Map an incoming PO to a customer — same domain → keyword → name logic as suppliers. */
+export function matchCustomer(rawText: string): SupplierMatch | null {
+  const low = rawText.toLowerCase();
+  const domains = [...rawText.matchAll(/@([a-z0-9.-]+\.[a-z]{2,})/gi)].map((m) => m[1].toLowerCase());
+  const customers = all<{ id: number; name: string; email: string | null; mail_keywords: string | null }>(
+    `SELECT id, name, email, mail_keywords FROM parties WHERE type = 'CUSTOMER'`);
+  for (const c of customers) {
+    const d = c.email?.split('@')[1]?.toLowerCase();
+    if (d && domains.includes(d)) return { supplier_id: c.id, supplier: c.name, how: `domain @${d}` };
+  }
+  for (const c of customers) {
+    const kws = (c.mail_keywords ?? '').split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
+    const hit = kws.find((k) => low.includes(k));
+    if (hit) return { supplier_id: c.id, supplier: c.name, how: `keyword "${hit}"` };
+  }
+  for (const c of customers) {
+    const word = c.name.split(/[ (]/)[0].toLowerCase();
+    if (word.length > 3 && low.includes(word)) return { supplier_id: c.id, supplier: c.name, how: 'name' };
+  }
+  return null;
+}
+
 /** Guess the product from the document text (size in mm + wire/rod). */
 export function detectProductId(rawText: string): number | null {
   const t = rawText.toLowerCase();
@@ -155,6 +177,19 @@ export function pendingCaptures(): CaptureRow[] {
      LEFT JOIN parties ap ON ap.id = a.supplier_id
      LEFT JOIN parties sp ON sp.id = c.matched_supplier_id
      LEFT JOIN products pr ON pr.id = c.matched_product_id
-     WHERE c.status IN ('PENDING','MISMATCH')
+     WHERE c.status IN ('PENDING','MISMATCH') AND c.matched_customer_id IS NULL
+     ORDER BY c.id DESC`);
+}
+
+export type CustomerCaptureRow = {
+  id: number; doc_type: string; reference_no: string | null; status: string;
+  matched_customer_id: number | null; customer: string | null; extracted_json: string;
+};
+/** Customer-side captures (their POs) awaiting review. */
+export function pendingCustomerCaptures(): CustomerCaptureRow[] {
+  return all<CustomerCaptureRow>(
+    `SELECT c.id, c.doc_type, c.reference_no, c.status, c.matched_customer_id, p.name customer, c.extracted_json
+     FROM email_captures c LEFT JOIN parties p ON p.id = c.matched_customer_id
+     WHERE c.status IN ('PENDING','MISMATCH') AND c.matched_customer_id IS NOT NULL
      ORDER BY c.id DESC`);
 }

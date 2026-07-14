@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { get, run } from './db';
 import { today } from './format';
-import { matchAllocation, matchSupplier, detectProductId, poByReference, parseDoc, type ParsedDoc } from './capture';
+import { matchAllocation, matchSupplier, matchCustomer, detectProductId, poByReference, parseDoc, type ParsedDoc } from './capture';
 import { bookEnquiry, cancelAlloc } from './req-core';
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
@@ -74,6 +74,46 @@ export async function rejectCapture(fd: FormData) {
   run(`UPDATE email_captures SET status = 'REJECTED' WHERE id = ?`, num(fd, 'capture_id'));
   refresh();
   redirect('/inbox');
+}
+
+// ---------- customer side: capture a customer's PO ----------
+export async function captureCustomerEmail(fd: FormData) {
+  const rawText = str(fd, 'text');
+  if (rawText.length < 15) redirect('/sales/inbox?err=' + encodeURIComponent('Paste the customer PO email text first.'));
+  const parsed = parseDoc(rawText);
+  const cust = matchCustomer(rawText);
+  run(
+    `INSERT INTO email_captures (received_at, doc_type, reference_no, matched_customer_id, extracted_json, status, raw_ref)
+     VALUES (?,?,?,?,?,?,?)`,
+    today(), parsed.doc_type, parsed.reference_no, cust?.supplier_id ?? null, JSON.stringify(parsed),
+    parsed.mismatch ? 'MISMATCH' : 'PENDING', rawText);
+  refresh();
+  redirect('/sales/inbox');
+}
+
+/** Confirm a customer PO → record it against their latest open PI (or cancel on a CANCEL doc). */
+export async function confirmCustomerCapture(fd: FormData) {
+  const id = num(fd, 'capture_id');
+  const c = get<{ doc_type: string; status: string; reference_no: string | null; matched_customer_id: number | null }>(
+    `SELECT doc_type, status, reference_no, matched_customer_id FROM email_captures WHERE id = ?`, id);
+  if (!c || (c.status !== 'PENDING' && c.status !== 'MISMATCH')) redirect('/sales/inbox');
+  if (!c!.matched_customer_id) redirect('/sales/inbox?err=' + encodeURIComponent('No customer matched — set the mail map in Settings, or reject.'));
+
+  if (c!.doc_type === 'CANCEL') {
+    const pi = get<{ id: number; booking_id: number | null }>(
+      `SELECT id, booking_id FROM sales_pi WHERE customer_id = ? AND status = 'SENT' ORDER BY id DESC LIMIT 1`, c!.matched_customer_id);
+    if (pi) {
+      run(`UPDATE sales_pi SET status = 'CANCELLED', cancelled_date = ? WHERE id = ?`, today(), pi.id);
+      if (pi.booking_id) run(`UPDATE bookings SET status = 'CANCELLED', notes = 'Customer cancelled' WHERE id = ?`, pi.booking_id);
+    }
+  } else {
+    const pi = get<{ id: number }>(
+      `SELECT id FROM sales_pi WHERE customer_id = ? AND status = 'SENT' AND customer_po IS NULL ORDER BY id DESC LIMIT 1`, c!.matched_customer_id);
+    if (pi) run(`UPDATE sales_pi SET customer_po = ? WHERE id = ?`, c!.reference_no ?? 'received', pi.id);
+  }
+  run(`UPDATE email_captures SET status = 'CONFIRMED' WHERE id = ?`, id);
+  refresh();
+  redirect('/sales/inbox');
 }
 
 /** Pull unseen PI/PO from the configured Gmail mailbox into the review queue. */

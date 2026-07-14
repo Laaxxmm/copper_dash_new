@@ -14,6 +14,7 @@ const SALES_TABS = [
   { href: '/sales', label: 'Customers' },
   { href: '/sales/pricing', label: 'Products & pricing' },
   { href: '/sales/orders', label: 'Sell orders' },
+  { href: '/sales/inbox', label: 'Customer inbox' },
 ];
 
 /** Secondary tab bar for the active section. Nothing on Dashboard/Finance/Settings. */

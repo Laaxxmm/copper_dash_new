@@ -5,8 +5,8 @@ class Redirected extends Error { constructor(public url: string) { super(url); }
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { throw new Redirected(u); } }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { parseDoc, pendingCaptures, matchSupplier, detectProductId, poByReference } from '@/lib/capture';
-import { captureEmail, confirmCapture } from '@/lib/capture-actions';
+import { parseDoc, pendingCaptures, pendingCustomerCaptures, matchSupplier, matchCustomer, detectProductId, poByReference } from '@/lib/capture';
+import { captureEmail, confirmCapture, captureCustomerEmail, confirmCustomerCapture } from '@/lib/capture-actions';
 import { products } from '@/lib/pricing';
 import { get, run } from '@/lib/db';
 import { today } from '@/lib/format';
@@ -137,5 +137,33 @@ describe('supplier mailbox pipeline (revamp)', () => {
     const cap = pendingCaptures().find((c) => c.doc_type === 'CANCEL')!;
     await fire(confirmCapture, { capture_id: cap.id });
     expect(get<{ status: string }>(`SELECT status FROM purchase_orders WHERE po_no='PO-777'`)!.status).toBe('CANCELLED');
+  });
+});
+
+describe('customer inbox (sales)', () => {
+  let cust: number;
+  beforeAll(() => {
+    useTestDb();
+    cust = Number(run(`INSERT INTO parties (name,type,email) VALUES ('Elite Wires','CUSTOMER','buy@elite.com')`).lastInsertRowid);
+    const b = Number(run(`INSERT INTO bookings (booking_no,kind,party_id,booking_date,qty_mt,pricing_basis,premium_inr_mt,status) VALUES ('SB-1','SALE',?,?,3,'DAY_PRICE',0,'OPEN')`, cust, today()).lastInsertRowid);
+    run(`INSERT INTO sales_pi (pi_no,customer_id,booking_id,qty_mt,rate_inr_kg,base_amount,tax_amount,gross_amount,status,created_date) VALUES ('CPI-1',?,?,3,1000,3000000,540000,3540000,'SENT',?)`, cust, b, today());
+  });
+  afterAll(destroyTestDb);
+
+  it('matches a customer by email domain and records their PO against the open PI', async () => {
+    expect(matchCustomer('PO from buy@elite.com')?.supplier_id).toBe(cust);
+    await fire(captureCustomerEmail, { text: 'PURCHASE ORDER No: EL-55 from buy@elite.com for 3 MT copper' });
+    const cap = pendingCustomerCaptures().find((c) => c.matched_customer_id === cust)!;
+    expect(cap.customer).toBe('Elite Wires');
+    await fire(confirmCustomerCapture, { capture_id: cap.id });
+    expect(get<{ customer_po: string }>(`SELECT customer_po FROM sales_pi WHERE pi_no='CPI-1'`)!.customer_po).toBe('EL-55');
+    expect(pendingCustomerCaptures()).toHaveLength(0);
+  });
+
+  it('a customer cancellation voids their latest sell order', async () => {
+    await fire(captureCustomerEmail, { text: 'Please CANCEL our order, from buy@elite.com' });
+    const cap = pendingCustomerCaptures().find((c) => c.doc_type === 'CANCEL')!;
+    await fire(confirmCustomerCapture, { capture_id: cap.id });
+    expect(get<{ status: string }>(`SELECT status FROM sales_pi WHERE pi_no='CPI-1'`)!.status).toBe('CANCELLED');
   });
 });
