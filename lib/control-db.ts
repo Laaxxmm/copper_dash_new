@@ -89,6 +89,52 @@ export function clientById(id: number): ClientRow | undefined {
   return getControlDb().prepare(
     `SELECT c.*, (SELECT COUNT(*) FROM users WHERE client_id = c.id) users FROM clients c WHERE c.id = ?`).get(id) as ClientRow | undefined;
 }
+export function clientBySlug(slug: string): ClientRow | undefined {
+  return getControlDb().prepare(
+    `SELECT c.*, (SELECT COUNT(*) FROM users WHERE client_id = c.id) users FROM clients c WHERE c.slug = ?`).get(slug) as ClientRow | undefined;
+}
+
+// ---------- provisioning + lifecycle (G2) ----------
+/** Each client's business DB lives beside the default one, under tenants/. */
+export function tenantDbPath(id: number): string {
+  return join(dirname(bizPath()), 'tenants', `client-${id}.db`);
+}
+
+export function auditLog(actorUserId: number | null, clientId: number | null, action: string, detail?: string) {
+  getControlDb().prepare(`INSERT INTO audit_log (at, actor_user_id, client_id, action, detail) VALUES (?,?,?,?,?)`)
+    .run(new Date().toISOString(), actorUserId, clientId, action, detail ?? null);
+}
+
+/** Insert a client row and stamp its dedicated business-DB path (needs the id first). */
+export function createClient(opts: { name: string; slug: string; plan?: string }): number {
+  const db = getControlDb();
+  const now = new Date().toISOString().slice(0, 10);
+  const id = Number(db.prepare(
+    `INSERT INTO clients (name, slug, status, plan, db_path, created_date) VALUES (?,?,?,?,?,?)`)
+    .run(opts.name, opts.slug, 'active', opts.plan ?? 'full', null, now).lastInsertRowid);
+  db.prepare(`UPDATE clients SET db_path = ? WHERE id = ?`).run(tenantDbPath(id), id);
+  return id;
+}
+
+export function createUser(opts: { clientId: number | null; username: string; email?: string | null; password: string; role: string }): number {
+  const { hash, salt } = hashPassword(opts.password);
+  const now = new Date().toISOString().slice(0, 10);
+  return Number(getControlDb().prepare(
+    `INSERT INTO users (client_id, username, email, password_hash, salt, role, status, created_date) VALUES (?,?,?,?,?,?,?,?)`)
+    .run(opts.clientId, opts.username, opts.email ?? null, hash, salt, opts.role, 'active', now).lastInsertRowid);
+}
+
+export function setClientStatus(id: number, status: 'active' | 'suspended') {
+  getControlDb().prepare(`UPDATE clients SET status = ? WHERE id = ?`).run(status, id);
+}
+
+/** Remove a client and its control-plane rows. The business DB file is left on
+ *  disk (never auto-deleted) so data can be recovered; the caller may remove it. */
+export function deleteClientRow(id: number) {
+  const db = getControlDb();
+  for (const t of ['users', 'client_flags', 'client_config']) db.prepare(`DELETE FROM ${t} WHERE client_id = ?`).run(id);
+  db.prepare(`DELETE FROM clients WHERE id = ?`).run(id);
+}
 export function listUsers(): (ControlUser & { client_name: string | null; last_login: string | null })[] {
   return getControlDb().prepare(
     `SELECT u.id, u.client_id, u.username, u.email, u.role, u.status, u.perms_json, u.last_login,

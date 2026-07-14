@@ -909,3 +909,21 @@ a.btn, a.btn-sm { color: #fff; }
 
 /* ---- motion: gentle staggered load-in already on .main > * ---- */
 @media (prefers-reduced-motion: reduce) { .main > * { animation: none !important; } .cbar-fill, .hm-cell, .sc2, .phero-cta { transition: none !important; } }
+
+/* ---- admin console (G2) ---- */
+.banner { padding: 12px 16px; border-radius: 12px; font-weight: 600; font-size: 14px; border: 1px solid var(--line); }
+.banner.good { background: var(--good-wash); color: var(--good); border-color: transparent; }
+.banner.bad { background: var(--bad-wash); color: var(--bad); border-color: transparent; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.btn-xs { font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.btn-xs:hover:not(:disabled) { background: var(--wash-2); }
+.btn-xs:disabled { opacity: .4; cursor: default; }
+.btn-xs.danger { color: var(--bad); border-color: var(--bad-wash); }
+.btn-xs.danger:hover { background: var(--bad-wash); }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.fld { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.fld input { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-weight: 500; color: var(--ink); background: var(--card); }
+.fld input:focus { outline: none; border-color: var(--accent); }
+.chk { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
+.chk input { margin-top: 2px; }

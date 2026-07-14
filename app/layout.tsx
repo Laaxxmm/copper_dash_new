@@ -10,6 +10,7 @@ import { collectionsSummary } from '@/lib/queries';
 import { currentUser } from '@/lib/current-user';
 import { resolveTenant } from '@/lib/tenant-resolve';
 import { runWithTenant } from '@/lib/tenant';
+import { logout } from '@/lib/auth-actions';
 import { dateLong, inr, today } from '@/lib/format';
 
 const display = Newsreader({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-display' });
@@ -22,9 +23,32 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const tenant = await resolveTenant();
+  // A suspended client is blocked from the whole app (their own DB is never
+  // shown to anyone else, but they can't use it while on hold). Enforced here
+  // because edge middleware can't read the control DB.
+  if (tenant?.suspended) return suspendedShell();
   // Scope covers the layout's own data (below). Child pages render as separate
   // work and re-enter the scope themselves via withTenantPage.
-  return runWithTenant(await resolveTenant(), () => renderShell(children));
+  return runWithTenant(tenant, () => renderShell(children));
+}
+
+function suspendedShell() {
+  return (
+    <html lang="en">
+      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
+        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, fontFamily: 'var(--font-body)' }}>
+          <div style={{ maxWidth: 460, textAlign: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, marginBottom: 10 }}>Workspace on hold</h1>
+            <p style={{ color: '#6b6257', lineHeight: 1.6, marginBottom: 22 }}>
+              Access to this workspace has been paused. Please contact your administrator to restore it.
+            </p>
+            <form action={logout}><button type="submit" className="btn-order outline">Sign out</button></form>
+          </div>
+        </div>
+      </body>
+    </html>
+  );
 }
 
 async function renderShell(children: React.ReactNode) {
