@@ -22,11 +22,12 @@
   --faint: #9aa197;
   --muted: #6c736a;
 
-  /* accent (copper — tweakable in Settings) */
+  /* accent (copper default — tweakable in Settings via [data-accent]) */
   --accent: #bf5a24;
   --copper: #bf5a24;
   --copper-hover: #a54c1d;
   --copper-text: #a54c1d;
+  --accent-light: #e08a4e;  /* lighter accent for the dark rail */
   --link-hover: #8f3f16;
   --wash-1: #f6e7db;        /* active nav, pills */
   --wash-2: #fbf2ea;        /* hero wash */
@@ -723,7 +724,7 @@ a.btn, a.btn-sm { color: #fff; }
 .brand-block { display: flex; align-items: flex-start; gap: 8px; position: relative; margin-bottom: 16px; padding-right: 2px; }
 .brand-txt { flex: 1; min-width: 0; }
 .brand { color: #f4f1ea; font-size: 21px; line-height: 1.1; padding: 2px 4px 0; }
-.brand .cu { color: #e08a4e; }
+.brand .cu { color: var(--accent-light); }
 .brand-sub { color: #7f8a80; padding: 5px 4px 0; }
 .brand-logo { max-width: 150px; max-height: 42px; }
 .sb-toggle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px; border: none; background: rgba(255,255,255,0.07); color: #b9c0b6; cursor: pointer; font-size: 14px; line-height: 1; transition: background 0.15s ease; }
@@ -732,7 +733,7 @@ a.btn, a.btn-sm { color: #fff; }
 .nav-link { color: #b7beb4; border-radius: 9px; }
 .nav-link svg { opacity: 0.72; }
 .nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.nav-link.active { background: rgba(191,90,36,0.20); color: #f0a874; font-weight: 700; }
+.nav-link.active { background: rgba(255,255,255,0.09); color: var(--accent-light); font-weight: 700; }
 .nav-link.active svg { opacity: 1; }
 .nav-foot { color: #7f8a80; }
 .nav-signout { border-color: rgba(255,255,255,0.16); color: #b7beb4; background: transparent; }
@@ -859,3 +860,50 @@ a.btn, a.btn-sm { color: #fff; }
 .cbar-fill { display: block; height: 100%; background: var(--good); border-radius: 7px; transition: width 0.3s ease; }
 .cbar-fill.loss { background: var(--bad); }
 .cbar-val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ============================================================
+   Redesign R6 — Appearance (accent / density), responsive, motion
+   ============================================================ */
+
+/* ---- accent themes (Settings → Appearance) ---- */
+:root[data-accent="green"] { --accent: #2f7d4f; --copper: #2f7d4f; --copper-hover: #276b43; --copper-text: #2a6e46; --accent-light: #6cc191; --link-hover: #1f5a38; --wash-1: #e6f0e8; --wash-2: #eef6f0; }
+:root[data-accent="blue"]  { --accent: #3f5b8a; --copper: #3f5b8a; --copper-hover: #354e78; --copper-text: #3a5482; --accent-light: #8aa4d4; --link-hover: #2c3f61; --wash-1: #e6ebf4; --wash-2: #eef1f8; }
+:root[data-accent="plum"]  { --accent: #8a3b64; --copper: #8a3b64; --copper-hover: #763154; --copper-text: #843a61; --accent-light: #cf87ab; --link-hover: #632a48; --wash-1: #f3e6ee; --wash-2: #f8eef4; }
+
+/* ---- density: compact ---- */
+:root[data-density="compact"] .card-pad { padding: 13px 16px; }
+:root[data-density="compact"] .tile { padding: 13px 15px 12px; }
+:root[data-density="compact"] table.data td { padding: 8px 10px; }
+:root[data-density="compact"] .page-title { font-size: 34px; }
+:root[data-density="compact"] .page-head { margin-bottom: 16px; }
+:root[data-density="compact"] .section-gap { margin-top: 16px; }
+:root[data-density="compact"] .phero { padding: 22px 26px; }
+:root[data-density="compact"] .phero-num { font-size: 44px; }
+:root[data-density="compact"] .grid { gap: 11px; }
+
+/* ---- appearance controls (Settings) ---- */
+.appearance-row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+.app-group { display: flex; flex-direction: column; gap: 9px; }
+.app-group > .app-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+.swatches { display: flex; gap: 9px; }
+.swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; box-shadow: 0 0 0 1px var(--line); position: relative; }
+.swatch input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.swatch:has(input:checked) { border-color: var(--card); box-shadow: 0 0 0 2px var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg label { padding: 8px 15px; font-size: 13.5px; font-weight: 600; cursor: pointer; color: var(--ink-2); background: var(--card); }
+.seg label:has(input:checked) { background: var(--copper); color: #fff; }
+.seg input { display: none; }
+
+/* ---- responsive polish ---- */
+@media (max-width: 820px) {
+  .main { padding: 18px 16px 48px; }
+  .phero { padding: 22px 22px; }
+  .phero-num { font-size: 42px; }
+  .page-title { font-size: 33px; }
+  .topbar { flex-wrap: wrap; }
+  .two-col { grid-template-columns: 1fr; }
+  .head-price { text-align: left; }
+}
+
+/* ---- motion: gentle staggered load-in already on .main > * ---- */
+@media (prefers-reduced-motion: reduce) { .main > * { animation: none !important; } .cbar-fill, .hm-cell, .sc2, .phero-cta { transition: none !important; } }

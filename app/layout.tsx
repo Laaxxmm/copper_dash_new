@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import SectionTabs from '@/components/SectionTabs';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import CollectionsBanner from '@/components/CollectionsBanner';
-import { companyProfile } from '@/lib/company';
+import { companyProfile, getSetting } from '@/lib/company';
 import { collectionsSummary } from '@/lib/queries';
 import { dateLong, inr, today } from '@/lib/format';
 
@@ -21,8 +21,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const co = companyProfile();
   const collect = collectionsSummary();
+  const accent = getSetting('ui:accent', 'copper');
+  const density = getSetting('ui:density', 'comfortable');
+  const bannerOn = getSetting('ui:banner', 'on') !== 'off';
   return (
-    <html lang="en">
+    <html lang="en" data-accent={accent} data-density={density}>
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         <div className="frame">
           <Sidebar name={co.name} logo={co.logo} city={co.city || 'Copper procurement'} />
@@ -31,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Breadcrumbs />
               <span className="topbar-date">{dateLong(today())}</span>
             </div>
-            <CollectionsBanner count={collect.count} total={inr(collect.total)} overdue={inr(collect.overdue)} hasOverdue={collect.overdue > 1} />
+            {bannerOn ? <CollectionsBanner count={collect.count} total={inr(collect.total)} overdue={inr(collect.overdue)} hasOverdue={collect.overdue > 1} /> : null}
             <SectionTabs />
             {children}
           </main>

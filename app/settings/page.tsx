@@ -2,7 +2,7 @@ import { PageHead } from '@/components/ui';
 import { CopperIngots } from '@/components/CopperArt';
 import EraseForm from '@/components/EraseForm';
 import { logout } from '@/lib/auth-actions';
-import { reloadDemoData, saveMailMap, saveGmail, saveCompany } from '@/lib/settings-actions';
+import { reloadDemoData, saveMailMap, saveGmail, saveCompany, saveAppearance } from '@/lib/settings-actions';
 import { ADMIN_USER } from '@/lib/auth';
 import { getSetting, companyProfile } from '@/lib/company';
 import { all } from '@/lib/db';
@@ -21,6 +21,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     `SELECT id, name, email, mail_keywords FROM parties WHERE type='SUPPLIER' ORDER BY (manual_rank IS NULL), manual_rank, name`);
   const gmail = { address: getSetting('mail:address'), host: getSetting('mail:imap_host', 'imap.gmail.com'), poll: getSetting('mail:poll_min', '10'), hasPw: !!getSetting('mail:app_password') };
   const co = companyProfile();
+  const appearance = { accent: getSetting('ui:accent', 'copper'), density: getSetting('ui:density', 'comfortable'), banner: getSetting('ui:banner', 'on') !== 'off' };
+  const ACCENTS: [string, string][] = [['copper', '#bf5a24'], ['green', '#2f7d4f'], ['blue', '#3f5b8a'], ['plum', '#8a3b64']];
   const COMPANY_FIELDS: [string, keyof typeof co][] = [
     ['Company name', 'name'], ['Address', 'address'], ['City / PIN', 'city'], ['State', 'state'],
     ['State code', 'state_code'], ['GSTIN', 'gstin'], ['PAN', 'pan'], ['CIN', 'cin'],
@@ -37,7 +39,38 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       {done === 'mailmap' ? <div className="notice good">Mailbox map saved.</div> : null}
       {done === 'gmail' ? <div className="notice good">Gmail connection saved. Live pull activates once the fetch worker is enabled.</div> : null}
       {done === 'company' ? <div className="notice good">Company profile saved — it heads every PO.</div> : null}
+      {done === 'appearance' ? <div className="notice good">Appearance updated.</div> : null}
       {err === 'logo' ? <div className="notice bad">Logo must be an image under 250 KB.</div> : null}
+
+      <form action={saveAppearance} className="card card-pad section-gap">
+        <div className="card-title">Appearance</div>
+        <div className="appearance-row">
+          <div className="app-group">
+            <span className="app-lbl">Accent colour</span>
+            <div className="swatches">
+              {ACCENTS.map(([name, hex]) => (
+                <label key={name} className="swatch" style={{ background: hex }} title={name}>
+                  <input type="radio" name="accent" value={name} defaultChecked={appearance.accent === name} />
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="app-group">
+            <span className="app-lbl">Density</span>
+            <div className="seg">
+              <label>Comfortable<input type="radio" name="density" value="comfortable" defaultChecked={appearance.density !== 'compact'} /></label>
+              <label>Compact<input type="radio" name="density" value="compact" defaultChecked={appearance.density === 'compact'} /></label>
+            </div>
+          </div>
+          <div className="app-group">
+            <span className="app-lbl">Collections banner</span>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14, fontWeight: 600 }}>
+              <input type="checkbox" name="banner" value="on" defaultChecked={appearance.banner} style={{ width: 18, height: 18 }} /> Show the week-ahead alert strip
+            </label>
+          </div>
+        </div>
+        <button type="submit" className="btn btn-sm" style={{ marginTop: 16 }}>Save appearance</button>
+      </form>
 
       <form action={saveCompany} className="card card-pad section-gap">
         <div className="card-title">Company profile — the buyer on every PO</div>

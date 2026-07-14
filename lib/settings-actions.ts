@@ -5,6 +5,19 @@ import { redirect } from 'next/navigation';
 import { getDb, run } from './db';
 import { clearAllData, seedDemo } from './seed';
 
+/** Appearance: accent colour, density, and whether the collections banner shows.
+ *  Persisted in settings and applied app-wide via data-attributes on <html>. */
+export async function saveAppearance(fd: FormData) {
+  const accent = ['copper', 'green', 'blue', 'plum'].includes(String(fd.get('accent'))) ? String(fd.get('accent')) : 'copper';
+  const density = String(fd.get('density')) === 'compact' ? 'compact' : 'comfortable';
+  const banner = fd.get('banner') === 'on' ? 'on' : 'off';
+  for (const [k, v] of [['ui:accent', accent], ['ui:density', density], ['ui:banner', banner]] as [string, string][]) {
+    run(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, k, v);
+  }
+  revalidatePath('/', 'layout');
+  redirect('/settings?done=appearance');
+}
+
 /** Company (PO buyer) profile + optional logo upload (stored as a data URI). */
 export async function saveCompany(fd: FormData) {
   const keys = ['name', 'address', 'city', 'state', 'state_code', 'gstin', 'pan', 'cin', 'bank', 'branch', 'ifsc', 'account'];
