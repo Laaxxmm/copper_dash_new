@@ -604,6 +604,24 @@ export function collectionsDue(): CollectionRow[] {
        AND i.due_date <= date('now', '+7 days')
      ORDER BY i.due_date`);
 }
+export type AgeingRow = { customer_id: number; customer: string; current: number; d30: number; d60: number; d90: number };
+/** Outstanding SALE money bucketed by how overdue it is, per customer (for the heatmap). */
+export function collectionsAgeing(): AgeingRow[] {
+  return all<AgeingRow>(
+    `SELECT p.id customer_id, p.name customer,
+            SUM(CASE WHEN x.days <= 0 THEN x.out ELSE 0 END) current,
+            SUM(CASE WHEN x.days BETWEEN 1 AND 30 THEN x.out ELSE 0 END) d30,
+            SUM(CASE WHEN x.days BETWEEN 31 AND 60 THEN x.out ELSE 0 END) d60,
+            SUM(CASE WHEN x.days > 60 THEN x.out ELSE 0 END) d90
+     FROM (SELECT i.party_id, i.total_amount - IFNULL(pp.paid, 0) out,
+                  CAST(julianday(date('now')) - julianday(i.due_date) AS INTEGER) days
+           FROM invoices i LEFT JOIN ${PAID_AGG} pp ON pp.invoice_id = i.id
+           WHERE i.kind = 'SALE' AND i.total_amount - IFNULL(pp.paid, 0) > 1) x
+     JOIN parties p ON p.id = x.party_id
+     GROUP BY p.id HAVING (current + d30 + d60 + d90) > 1
+     ORDER BY (d90 + d60 + d30) DESC, current DESC`);
+}
+
 export function collectionsSummary(): { count: number; total: number; overdue: number } {
   const rows = collectionsDue();
   return {

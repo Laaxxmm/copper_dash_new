@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { PageHead } from '@/components/ui';
-import { partySummaries } from '@/lib/queries';
+import CollectionsHeatmap from '@/components/CollectionsHeatmap';
+import { partySummaries, collectionsAgeing } from '@/lib/queries';
 import { inr } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 export default function SalesPage() {
   const customers = partySummaries('CUSTOMER');
+  const ageing = collectionsAgeing();
   const totalOut = customers.reduce((s, c) => s + c.outstanding, 0);
   const totalOverdue = customers.reduce((s, c) => s + c.overdue, 0);
 
@@ -33,7 +35,7 @@ export default function SalesPage() {
                   <td>{c.credit_days === 0 ? 'advance' : `${c.credit_days} days`}</td>
                   <td>{c.volume_mt}</td>
                   <td>{c.outstanding > 1 ? inr(c.outstanding) : '—'}</td>
-                  <td>{c.overdue > 1 ? <span className="neg">{inr(c.overdue)}</span> : '—'}</td>
+                  <td>{c.overdue > 1 ? <span className="spill bad">{inr(c.overdue)}</span> : <span className="muted">—</span>}</td>
                   <td><Link href={`/sales/customers/${c.id}`} className="btn-order outline">Open</Link></td>
                 </tr>
               ))}
@@ -42,7 +44,10 @@ export default function SalesPage() {
         </div>
       </div>
 
-      <div className="help">Products &amp; pricing, sell orders, PIs and collection reminders arrive in the next Sales updates. Customer list, credit terms and outstanding are live now.</div>
+      <div className="section-gap">
+        <div className="section-title">Collections ageing — who owes, and how late</div>
+        <div className="card"><CollectionsHeatmap rows={ageing} /></div>
+      </div>
     </>
   );
 }
