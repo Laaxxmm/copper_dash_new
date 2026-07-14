@@ -11,7 +11,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-import { addBooking, addFixation, addLifting, addParty, addPayment, saveCsp, saveLme, updateTruck } from '@/lib/actions';
+import { addBooking, addFixation, addLifting, addParty, addPayment, saveCsp, saveLme, saveSupplierPlan, updateTruck } from '@/lib/actions';
 import { all, get, run } from '@/lib/db';
 
 const fd = (fields: Record<string, string | number>) => {
@@ -180,5 +180,22 @@ describe('saveLme', () => {
 
   it('rejects a value that cannot be US$/MT', async () => {
     expect(isError(await endsAt(saveLme, { date: '2026-07-12', usd_mt: 135 }))).toBe(true);
+  });
+});
+
+describe('saveSupplierPlan', () => {
+  it('sets manual rank and upserts the monthly per-product target', async () => {
+    const pid = get<{ id: number }>(`SELECT id FROM products LIMIT 1`)!.id;
+    const sup = get<{ id: number }>(`SELECT id FROM parties WHERE type='SUPPLIER' LIMIT 1`)!.id;
+    const url = await endsAt(saveSupplierPlan, { supplier_id: sup, product_id: pid, month: '2026-07', rank: 2, target_mt: 30, agreed_mt: 25 });
+    expect(url).toBe(`/suppliers?month=2026-07&product=${pid}`);
+    expect(get(`SELECT manual_rank FROM parties WHERE id=?`, sup)).toEqual({ manual_rank: 2 });
+    expect(get(`SELECT target_mt, agreed_mt FROM supplier_targets WHERE supplier_id=? AND product_id=? AND month='2026-07'`, sup, pid))
+      .toEqual({ target_mt: 30, agreed_mt: 25 });
+    // upsert: rank 0 clears the rank, target updates in place (no duplicate row)
+    await endsAt(saveSupplierPlan, { supplier_id: sup, product_id: pid, month: '2026-07', rank: 0, target_mt: 40, agreed_mt: 40 });
+    expect(get(`SELECT manual_rank FROM parties WHERE id=?`, sup)).toEqual({ manual_rank: null });
+    expect(all(`SELECT target_mt FROM supplier_targets WHERE supplier_id=? AND product_id=? AND month='2026-07'`, sup, pid))
+      .toEqual([{ target_mt: 40 }]);
   });
 });

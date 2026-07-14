@@ -76,6 +76,24 @@ export async function saveLme(fd: FormData) {
   redirect('/where-to-buy');
 }
 
+// ---------- supplier plan: manual L-rank + monthly target/agreed (per product) ----------
+export async function saveSupplierPlan(fd: FormData) {
+  const sid = num(fd, 'supplier_id');
+  const pid = num(fd, 'product_id');
+  const month = str(fd, 'month') || today().slice(0, 7);
+  const clamp = (n: number) => Math.max(0, Math.min(100000, isFinite(n) ? n : 0));
+  const rank = Math.round(num(fd, 'rank'));
+  const target = clamp(num(fd, 'target_mt'));
+  const agreed = clamp(num(fd, 'agreed_mt'));
+  if (!sid || !pid) redirect('/suppliers');
+  run(`UPDATE parties SET manual_rank = ? WHERE id = ?`, rank > 0 ? rank : null, sid);
+  run(`INSERT INTO supplier_targets (supplier_id, product_id, month, target_mt, agreed_mt) VALUES (?,?,?,?,?)
+       ON CONFLICT(supplier_id, product_id, month)
+       DO UPDATE SET target_mt = excluded.target_mt, agreed_mt = excluded.agreed_mt`, sid, pid, month, target, agreed);
+  refresh();
+  redirect(`/suppliers?month=${month}&product=${pid}`);
+}
+
 // ---------- booking ----------
 export async function addBooking(fd: FormData) {
   const kind = str(fd, 'kind') === 'SALE' ? 'SALE' : 'PURCHASE';

@@ -529,6 +529,28 @@ export function monthlyPlan(month: string): SupplierMonthRow[] {
      ORDER BY (p.manual_rank IS NULL), p.manual_rank, p.name`, month, month);
 }
 
+export type ProductTargetRow = {
+  supplier_id: number; supplier: string; city: string | null; phone: string | null;
+  manual_rank: number | null; target_mt: number; agreed_mt: number; lifted_mt: number;
+};
+
+/** Every supplier's target/agreed/lifted for one product in one month, ranked by manual L-rank.
+ *  Drives the Suppliers page (target-setting + ranking). */
+export function productTargets(month: string, productId: number): ProductTargetRow[] {
+  return all<ProductTargetRow>(
+    `SELECT p.id supplier_id, p.name supplier, p.city, p.phone, p.manual_rank,
+            IFNULL(t.target_mt, 0) target_mt, IFNULL(t.agreed_mt, 0) agreed_mt,
+            IFNULL(l.lifted_mt, 0) lifted_mt
+     FROM parties p
+     LEFT JOIN supplier_targets t ON t.supplier_id = p.id AND t.month = ? AND t.product_id = ?
+     LEFT JOIN (SELECT b.party_id, SUM(l.qty_mt) lifted_mt
+                FROM liftings l JOIN bookings b ON b.id = l.booking_id
+                WHERE b.kind = 'PURCHASE' AND b.product_id = ? AND strftime('%Y-%m', l.dispatch_date) = ?
+                GROUP BY b.party_id) l ON l.party_id = p.id
+     WHERE p.type = 'SUPPLIER'
+     ORDER BY (p.manual_rank IS NULL), p.manual_rank, p.name`, month, productId, productId, month);
+}
+
 /** Cost of purchase for the month: committed (PO gross, or purchase invoices until POs exist)
  *  and actually paid out to suppliers. */
 export function costOfPurchase(month: string): { committed: number; paid: number; poCount: number } {
