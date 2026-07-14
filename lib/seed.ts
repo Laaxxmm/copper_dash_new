@@ -356,4 +356,19 @@ export function seedDemo(db: DatabaseSync) {
     `INSERT INTO allocations (requirement_id,supplier_id,tier_label,qty_mt,rate_inr_kg,booking_id,status,created_date,sent_at,notes)
      VALUES (?,?,?,?,?,NULL,'ENQUIRY',?,?,NULL)`).run(rc, supplierIds[0], 'L1', 4, rateOf(termOf(supplierIds[0], w575)), TODAY, TODAY);
   db.prepare(`UPDATE requirements SET status='PARTIAL' WHERE id=?`).run(rc);
+
+  // ---------- Revamp demo: monthly per-supplier, per-product targets + manual L-rank ----------
+  const curMonth = TODAY.slice(0, 7);
+  const insTarget = db.prepare(
+    `INSERT OR IGNORE INTO supplier_targets (supplier_id, product_id, month, target_mt, agreed_mt) VALUES (?,?,?,?,?)`);
+  const targets: [number, number, number, number][] = [
+    [0, w160, 30, 28], [0, rod8, 10, 10],
+    [1, w160, 20, 18],
+    [2, w160, 15, 12], [2, w575, 8, 6],
+    [3, w160, 12, 12],
+    [4, rod8, 15, 10],
+  ];
+  for (const [si, pid, tgt, agr] of targets) insTarget.run(supplierIds[si], pid, curMonth, tgt, agr);
+  const upRank = db.prepare(`UPDATE parties SET manual_rank = ? WHERE id = ?`);
+  supplierIds.forEach((id, i) => upRank.run(i + 1, id));
 }

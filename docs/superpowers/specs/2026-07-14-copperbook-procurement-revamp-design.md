@@ -33,6 +33,10 @@ The end-to-end flow this UI must serve:
 10. **Cost of purchase** KPI — how much we have paid / committed to suppliers.
 11. **Accurate live LME + news**; **date top-right**; **company logo top-left of the nav**.
 12. Sales handled separately later.
+13. **Basis-aware cost average** — every lift carries the **pricing basis it was fixed on**
+    (day / CSP / week-avg / fortnight-avg / month-avg / price-later). The supplier page and
+    dashboard show the **blended ₹/kg cost average**, broken down by basis, so the user can see
+    the true overall cost of what was actually lifted from each supplier.
 
 ## 2. Information architecture (new navigation)
 
@@ -146,6 +150,12 @@ reverses it.
 minus any that were **cancelled**, reconciled with actual `payments (direction='OUT')` where
 recorded. Shown as a dashboard KPI and per supplier. PO records live in a new lightweight
 `purchase_orders` table (see §8); actual bank payments continue in `payments`.
+
+**Basis-aware cost average.** Each lift is priced through `price_fixations` against a booking
+whose `pricing_basis` records *how* it was priced (day / CSP / week / fortnight / month-avg /
+price-later). Per supplier: `avg_cost ₹/kg = Σ(fixed_rate × lifted_qty) / Σ(lifted_qty)`,
+also grouped by basis, so the user sees the blended cost and which basis drove it. Derived —
+no new column; `bookings.pricing_basis` already exists.
 
 ## 6. Mailbox / Gmail
 

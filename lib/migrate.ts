@@ -62,6 +62,32 @@ const PHASE1_TABLES = [
      created_date TEXT NOT NULL,
      notes TEXT)`,
   `CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`,
+  // Revamp — monthly per-supplier, per-product tonnage plan (target vs agreed; lifted is derived).
+  `CREATE TABLE IF NOT EXISTS supplier_targets (
+     id INTEGER PRIMARY KEY,
+     supplier_id INTEGER NOT NULL REFERENCES parties(id),
+     product_id INTEGER NOT NULL REFERENCES products(id),
+     month TEXT NOT NULL,
+     target_mt REAL NOT NULL DEFAULT 0,
+     agreed_mt REAL NOT NULL DEFAULT 0,
+     UNIQUE(supplier_id, product_id, month))`,
+  // Revamp — purchase orders we issue to suppliers (gross = committed cost of purchase).
+  `CREATE TABLE IF NOT EXISTS purchase_orders (
+     id INTEGER PRIMARY KEY,
+     po_no TEXT NOT NULL UNIQUE,
+     supplier_id INTEGER NOT NULL REFERENCES parties(id),
+     product_id INTEGER REFERENCES products(id),
+     month TEXT,
+     qty_mt REAL NOT NULL,
+     rate_inr_kg REAL NOT NULL,
+     base_amount REAL NOT NULL,
+     tax_amount REAL NOT NULL DEFAULT 0,
+     gross_amount REAL NOT NULL,
+     lme_usd REAL, fx_rate REAL, basis TEXT,
+     status TEXT NOT NULL DEFAULT 'SENT' CHECK (status IN ('SENT','CANCELLED')),
+     created_date TEXT NOT NULL,
+     cancelled_date TEXT,
+     capture_id INTEGER REFERENCES email_captures(id))`,
   // Phase 4 — inbound documents parsed from email, awaiting human confirmation.
   `CREATE TABLE IF NOT EXISTS email_captures (
      id INTEGER PRIMARY KEY,
@@ -92,6 +118,9 @@ export function migrate(db: DatabaseSync) {
     db.prepare(`ALTER TABLE parties ADD COLUMN exchange_basis TEXT DEFAULT 'RBI_TT'`).run();
   }
   if (!colset('parties').has('email')) db.prepare(`ALTER TABLE parties ADD COLUMN email TEXT`).run();
+  if (!colset('parties').has('manual_rank')) db.prepare(`ALTER TABLE parties ADD COLUMN manual_rank INTEGER`).run();
+  if (!colset('parties').has('mail_keywords')) db.prepare(`ALTER TABLE parties ADD COLUMN mail_keywords TEXT`).run();
+  if (!colset('supplier_terms').has('default_basis')) db.prepare(`ALTER TABLE supplier_terms ADD COLUMN default_basis TEXT DEFAULT 'DAY'`).run();
   if (colset('allocations').size && !colset('allocations').has('sent_at')) db.prepare(`ALTER TABLE allocations ADD COLUMN sent_at TEXT`).run();
 
   const insP = db.prepare(`INSERT OR IGNORE INTO products (type, size_mm, description) VALUES (?,?,?)`);

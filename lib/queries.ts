@@ -500,3 +500,49 @@ export function alerts(): Alert[] {
   const order = { critical: 0, warning: 1, info: 2 };
   return out.sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 8);
 }
+
+// ---------- monthly procurement plan (dashboard + suppliers) ----------
+export type SupplierMonthRow = {
+  supplier_id: number; supplier: string; city: string | null; phone: string | null;
+  manual_rank: number | null;
+  target_mt: number; agreed_mt: number; lifted_mt: number; avg_cost_kg: number | null;
+};
+
+/** Per-supplier plan for one 'YYYY-MM': target & agreed (from supplier_targets),
+ *  lifted & blended cost (derived from liftings priced via price_fixations). */
+export function monthlyPlan(month: string): SupplierMonthRow[] {
+  return all<SupplierMonthRow>(
+    `SELECT p.id supplier_id, p.name supplier, p.city, p.phone, p.manual_rank,
+            IFNULL(t.target_mt, 0) target_mt, IFNULL(t.agreed_mt, 0) agreed_mt,
+            IFNULL(l.lifted_mt, 0) lifted_mt,
+            l.avg_rate_mt / 1000.0 avg_cost_kg
+     FROM parties p
+     LEFT JOIN (SELECT supplier_id, SUM(target_mt) target_mt, SUM(agreed_mt) agreed_mt
+                FROM supplier_targets WHERE month = ? GROUP BY supplier_id) t ON t.supplier_id = p.id
+     LEFT JOIN (SELECT b.party_id, SUM(l.qty_mt) lifted_mt,
+                       SUM(l.qty_mt * f.rate) / NULLIF(SUM(l.qty_mt), 0) avg_rate_mt
+                FROM liftings l JOIN bookings b ON b.id = l.booking_id
+                LEFT JOIN ${FIX_AGG} f ON f.booking_id = b.id
+                WHERE b.kind = 'PURCHASE' AND strftime('%Y-%m', l.dispatch_date) = ?
+                GROUP BY b.party_id) l ON l.party_id = p.id
+     WHERE p.type = 'SUPPLIER' AND (t.supplier_id IS NOT NULL OR l.party_id IS NOT NULL)
+     ORDER BY (p.manual_rank IS NULL), p.manual_rank, p.name`, month, month);
+}
+
+/** Cost of purchase for the month: committed (PO gross, or purchase invoices until POs exist)
+ *  and actually paid out to suppliers. */
+export function costOfPurchase(month: string): { committed: number; paid: number; poCount: number } {
+  const po = get<{ committed: number; n: number }>(
+    `SELECT IFNULL(SUM(gross_amount), 0) committed, COUNT(*) n
+     FROM purchase_orders WHERE status = 'SENT' AND month = ?`, month)!;
+  const paid = get<{ paid: number }>(
+    `SELECT IFNULL(SUM(pm.amount), 0) paid FROM payments pm JOIN parties p ON p.id = pm.party_id
+     WHERE pm.direction = 'OUT' AND p.type = 'SUPPLIER' AND strftime('%Y-%m', pm.payment_date) = ?`, month)!;
+  let committed = po.committed;
+  if (po.n === 0) {
+    committed = get<{ c: number }>(
+      `SELECT IFNULL(SUM(total_amount), 0) c FROM invoices
+       WHERE kind = 'PURCHASE' AND strftime('%Y-%m', invoice_date) = ?`, month)!.c;
+  }
+  return { committed, paid: paid.paid, poCount: po.n };
+}
