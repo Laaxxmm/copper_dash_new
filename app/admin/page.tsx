@@ -2,19 +2,25 @@ import Link from 'next/link';
 import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { requireSuperAdmin } from '@/lib/current-user';
-import { listClients, listUsers } from '@/lib/control-db';
-import { createClientAction, suspendClient, enableClient, deleteClientAction } from '@/lib/client-actions';
+import { listClients, listUsers, recentAudit, listAnnouncements } from '@/lib/control-db';
+import {
+  createClientAction, suspendClient, enableClient, deleteClientAction,
+  impersonateClient, postAnnouncement, removeAnnouncement,
+} from '@/lib/client-actions';
 import { dateShort } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 const ROLE_LABEL: Record<string, string> = { SUPER_ADMIN: 'Super admin', CLIENT_ADMIN: 'Client admin', STAFF: 'Staff' };
+const stamp = (iso: string) => iso.slice(0, 16).replace('T', ' ');
 
 async function AdminPage({ searchParams }: { searchParams: Promise<{ err?: string; done?: string }> }) {
   await requireSuperAdmin();
   const sp = await searchParams;
   const clients = listClients();
   const users = listUsers();
+  const audit = recentAudit(25);
+  const announcements = listAnnouncements();
 
   return (
     <>
@@ -45,6 +51,9 @@ async function AdminPage({ searchParams }: { searchParams: Promise<{ err?: strin
                     <td>
                       <div className="row-actions">
                         <Link href={`/admin/clients/${c.id}`} className="btn-xs">Manage</Link>
+                        {c.slug !== 'default'
+                          ? <form action={impersonateClient}><input type="hidden" name="client_id" value={c.id} /><button className="btn-xs">Open</button></form>
+                          : null}
                         {c.status === 'suspended'
                           ? <form action={enableClient}><input type="hidden" name="id" value={c.id} /><button className="btn-xs">Enable</button></form>
                           : <form action={suspendClient}><input type="hidden" name="id" value={c.id} /><button className="btn-xs" disabled={c.slug === 'default'}>Suspend</button></form>}
@@ -104,7 +113,60 @@ async function AdminPage({ searchParams }: { searchParams: Promise<{ err?: strin
         </div></div>
       </div>
 
-      <div className="help"><b>Next:</b> per-client user seats, feature toggles, and each client&apos;s live-price feed and news — all from here.</div>
+      <div className="grid two-col section-gap">
+        <div>
+          <div className="section-title">Recent activity</div>
+          <div className="card"><div className="table-wrap">
+            <table className="data">
+              <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Client</th></tr></thead>
+              <tbody>
+                {audit.length === 0 ? (
+                  <tr><td colSpan={4} className="muted card-pad">No activity yet.</td></tr>
+                ) : audit.map((a) => (
+                  <tr key={a.id}>
+                    <td className="mono-sm">{stamp(a.at)}</td>
+                    <td>{a.actor ?? <span className="muted">—</span>}</td>
+                    <td><span className="mono-sm">{a.action}</span>{a.detail ? <div className="cell-sub">{a.detail}</div> : null}</td>
+                    <td>{a.client_name ?? <span className="muted">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div></div>
+        </div>
+
+        <div>
+          <div className="section-title">Announcements</div>
+          <div className="card card-pad">
+            <form action={postAnnouncement} className="stack">
+              <label className="fld">Message
+                <input name="message" required placeholder="e.g. Maintenance tonight 10–11pm" autoComplete="off" />
+              </label>
+              <label className="fld">Show to
+                <select name="target" defaultValue="all">
+                  <option value="all">Everyone</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name} only</option>)}
+                </select>
+              </label>
+              <button className="btn-order" type="submit">Post</button>
+              <p className="muted" style={{ margin: 0 }}>Shows as a banner across the top of the app until you remove it.</p>
+            </form>
+            {announcements.length ? (
+              <div style={{ marginTop: 14 }}>
+                {announcements.map((a) => (
+                  <div key={a.id} className="ann-row">
+                    <span className={`spill ${a.active ? 'good' : 'warn'}`}>{a.active ? 'live' : 'ended'}</span>
+                    <span className="ann-msg">{a.message}<div className="cell-sub">{a.scope === 'all' ? 'everyone' : a.client_name ?? 'a client'} · {stamp(a.at)}</div></span>
+                    {a.active ? <form action={removeAnnouncement}><input type="hidden" name="id" value={a.id} /><button className="btn-xs">End</button></form> : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="help"><b>Tip:</b> <b>Open</b> lets you step into a client&apos;s workspace to see exactly what they see; a banner stays up until you stop. Every action here is logged in Recent activity.</div>
     </>
   );
 }

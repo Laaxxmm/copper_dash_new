@@ -4,6 +4,7 @@
 // via Web Crypto — no external dependency.
 
 export const SESSION_COOKIE = 'cb_session';
+export const IMPERSONATE_COOKIE = 'cb_impersonate'; // super-admin "open as client" (signed clientId)
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
 export const ADMIN_USER = process.env.ADMIN_USER || 'admin';

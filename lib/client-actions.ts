@@ -2,14 +2,17 @@
 // Control-plane actions: the super-admin provisions and manages clients. These
 // operate on the control DB (and create per-tenant business DB files directly),
 // so they are deliberately NOT tenant-scoped.
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from './current-user';
+import { IMPERSONATE_COOKIE, SESSION_MAX_AGE, signSession } from './auth';
 import {
   createClient, createUser, clientBySlug, clientById, userByUsername, userById,
   setClientStatus, deleteClientRow, auditLog, tenantDbPath,
   usersByClient, setUserStatus, setUserRole, updateUserPassword, deleteUser,
   seatLimit, setClientConfig, setFeature,
+  createAnnouncement, setAnnouncementActive,
 } from './control-db';
 import { FEATURE_KEYS, PRICE_SOURCES, ACCENTS } from './features';
 import { openBusinessDb } from './db';
@@ -207,4 +210,46 @@ export async function saveClientData(fd: FormData) {
   auditLog(me.id, clientId, 'client.data', priceSource);
   revalidatePath(`/admin/clients/${clientId}`);
   backDone(clientId, 'Data sources & branding saved.');
+}
+
+// ---------- impersonation + announcements (G5) ----------
+export async function impersonateClient(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id'));
+  const c = clientById(clientId);
+  if (!c) redirect('/admin?err=' + encodeURIComponent('That client no longer exists.'));
+  (await cookies()).set(IMPERSONATE_COOKIE, await signSession(String(clientId)), {
+    httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: SESSION_MAX_AGE,
+  });
+  auditLog(me.id, clientId, 'client.impersonate.start', c!.name);
+  redirect('/');
+}
+
+export async function stopImpersonating() {
+  const me = await requireSuperAdmin(); // resolved from the real session, not the impersonation
+  (await cookies()).delete(IMPERSONATE_COOKIE);
+  auditLog(me.id, null, 'client.impersonate.stop');
+  redirect('/admin');
+}
+
+export async function postAnnouncement(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const message = String(fd.get('message') || '').trim();
+  const target = String(fd.get('target') || 'all'); // 'all' or a client id
+  if (!message) redirect('/admin?err=' + encodeURIComponent('Write a message first.'));
+  const clientId = target === 'all' ? null : Number(target) || null;
+  if (target !== 'all' && (!clientId || !clientById(clientId))) redirect('/admin?err=' + encodeURIComponent('Pick a valid audience.'));
+  createAnnouncement(clientId ? 'client' : 'all', clientId, message);
+  auditLog(me.id, clientId, 'announcement.post', `${clientId ? 'client' : 'all'}: ${message.slice(0, 60)}`);
+  revalidatePath('/admin');
+  redirect('/admin?done=' + encodeURIComponent('Announcement posted.'));
+}
+
+export async function removeAnnouncement(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const id = Number(fd.get('id'));
+  setAnnouncementActive(id, false);
+  auditLog(me.id, null, 'announcement.remove', String(id));
+  revalidatePath('/admin');
+  redirect('/admin?done=' + encodeURIComponent('Announcement removed.'));
 }

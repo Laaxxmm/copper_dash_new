@@ -6,12 +6,15 @@ import type { ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import { SESSION_COOKIE, verifySession } from './auth';
+import { SESSION_COOKIE, IMPERSONATE_COOKIE, verifySession } from './auth';
 import { userById, clientById, clientSettings, DEFAULT_SETTINGS, type ControlUser, type ClientSettings } from './control-db';
 import { runWithTenant, type TenantCtx } from './tenant';
 
 export type Access = 'ok' | 'user-locked' | 'client-suspended';
-export type SessionInfo = { userId: number; user: ControlUser; tenant?: TenantCtx; access: Access; settings: ClientSettings };
+export type SessionInfo = {
+  userId: number; user: ControlUser; tenant?: TenantCtx; access: Access; settings: ClientSettings;
+  impersonating?: { clientId: number; clientName: string };
+};
 
 /** The whole session in one cache()'d control-DB read per request. A client
  *  user is ALWAYS bound to their own client's DB — even when locked or their
@@ -19,11 +22,28 @@ export type SessionInfo = { userId: number; user: ControlUser; tenant?: TenantCt
  *  separate verdict the layout and actions enforce. Never throws. */
 export const resolveSession = cache(async (): Promise<SessionInfo | null> => {
   try {
-    const raw = (await cookies()).get(SESSION_COOKIE)?.value;
-    const id = Number(await verifySession(raw));
+    const jar = await cookies();
+    const id = Number(await verifySession(jar.get(SESSION_COOKIE)?.value));
     if (!id || !Number.isFinite(id)) return null;
     const user = userById(id);
     if (!user) return null;
+
+    // "Open as client": a super-admin carrying a valid impersonation cookie sees
+    // the target client's DB + settings (honoured only because the REAL user is a
+    // super-admin — a forged cookie can't elevate anyone else).
+    if (user.role === 'SUPER_ADMIN') {
+      const impId = Number(await verifySession(jar.get(IMPERSONATE_COOKIE)?.value));
+      if (impId && Number.isFinite(impId)) {
+        const tc = clientById(impId);
+        if (tc && tc.db_path) {
+          return {
+            userId: id, user, tenant: { clientId: tc.id, dbPath: tc.db_path }, access: 'ok',
+            settings: clientSettings(tc.id), impersonating: { clientId: tc.id, clientName: tc.name },
+          };
+        }
+      }
+    }
+
     if (user.client_id == null) { // global super-admin: no client → default DB
       return { userId: id, user, tenant: undefined, access: user.status === 'active' ? 'ok' : 'user-locked', settings: DEFAULT_SETTINGS };
     }

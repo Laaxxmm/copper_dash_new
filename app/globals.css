@@ -931,3 +931,15 @@ a.btn, a.btn-sm { color: #fff; }
 .reset-form { display: flex; flex-direction: column; gap: 12px; }
 .chk { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
 .chk input { margin-top: 2px; }
+
+/* impersonation + announcements (G5) */
+.impersonate-bar { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+  background: var(--accent); color: #fff; padding: 8px 18px; font-size: 13px; font-weight: 600; }
+.impersonate-bar button { font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.5); border-radius: 8px; padding: 3px 12px; }
+.impersonate-bar button:hover { background: rgba(255,255,255,.3); }
+.announce-bar { display: flex; align-items: center; gap: 10px; background: var(--wash-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 11px 16px; margin-bottom: 12px; font-size: 14px; font-weight: 500; color: var(--ink); }
+.announce-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+.ann-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line-soft); }
+.ann-msg { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink); }

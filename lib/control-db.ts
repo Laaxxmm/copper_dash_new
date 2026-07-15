@@ -192,6 +192,36 @@ export function clientSettings(clientId: number): ClientSettings {
 }
 /** Defaults for a session with no client (global super-admin): everything on. */
 export const DEFAULT_SETTINGS: ClientSettings = { disabled: [], priceSource: 'LME', newsKeywords: '', brandName: '', brandAccent: '' };
+
+// ---------- audit log + announcements (G5) ----------
+export type AuditRow = { id: number; at: string; actor: string | null; client_name: string | null; action: string; detail: string | null };
+/** Recent audit entries with actor + client names resolved. Optional clientId filter. */
+export function recentAudit(limit = 30, clientId?: number): AuditRow[] {
+  const where = clientId ? `WHERE a.client_id = ?` : '';
+  const p = clientId ? [clientId, limit] : [limit];
+  return getControlDb().prepare(
+    `SELECT a.id, a.at, u.username actor, c.name client_name, a.action, a.detail
+     FROM audit_log a LEFT JOIN users u ON u.id = a.actor_user_id LEFT JOIN clients c ON c.id = a.client_id
+     ${where} ORDER BY a.id DESC LIMIT ?`).all(...p) as AuditRow[];
+}
+
+export type Announcement = { id: number; at: string; scope: string; client_id: number | null; client_name: string | null; message: string; active: number };
+export function listAnnouncements(): Announcement[] {
+  return getControlDb().prepare(
+    `SELECT a.*, c.name client_name FROM announcements a LEFT JOIN clients c ON c.id = a.client_id ORDER BY a.id DESC`).all() as Announcement[];
+}
+/** Active messages a given client should see (global + their own). */
+export function activeAnnouncements(clientId: number | null): { id: number; message: string }[] {
+  return getControlDb().prepare(
+    `SELECT id, message FROM announcements WHERE active = 1 AND (scope = 'all' OR client_id = ?) ORDER BY id DESC`).all(clientId ?? -1) as { id: number; message: string }[];
+}
+export function createAnnouncement(scope: 'all' | 'client', clientId: number | null, message: string) {
+  getControlDb().prepare(`INSERT INTO announcements (at, scope, client_id, message, active) VALUES (?,?,?,?,1)`)
+    .run(new Date().toISOString(), scope, scope === 'client' ? clientId : null, message);
+}
+export function setAnnouncementActive(id: number, active: boolean) {
+  getControlDb().prepare(`UPDATE announcements SET active = ? WHERE id = ?`).run(active ? 1 : 0, id);
+}
 export function listUsers(): (ControlUser & { client_name: string | null; last_login: string | null })[] {
   return getControlDb().prepare(
     `SELECT u.id, u.client_id, u.username, u.email, u.role, u.status, u.perms_json, u.last_login,

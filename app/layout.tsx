@@ -12,8 +12,9 @@ import { currentUser } from '@/lib/current-user';
 import { resolveSession } from '@/lib/tenant-resolve';
 import { runWithTenant } from '@/lib/tenant';
 import { logout } from '@/lib/auth-actions';
+import { stopImpersonating } from '@/lib/client-actions';
 import { featureForPath } from '@/lib/features';
-import { DEFAULT_SETTINGS, type ClientSettings } from '@/lib/control-db';
+import { DEFAULT_SETTINGS, activeAnnouncements, type ClientSettings } from '@/lib/control-db';
 import { dateLong, inr, today } from '@/lib/format';
 
 const display = Newsreader({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-display' });
@@ -35,10 +36,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Route guard: a disabled feature's pages show a notice, not the data.
   const feat = featureForPath((await headers()).get('x-pathname') ?? '');
   const content = feat && settings.disabled.includes(feat) ? <FeatureOff /> : children;
+  const banners = {
+    impersonating: session?.impersonating,
+    announcements: session ? activeAnnouncements(session.tenant?.clientId ?? null) : [],
+  };
   // Scope covers the layout's own data (below). Child pages render as separate
   // work and re-enter the scope themselves via withTenantPage.
-  return runWithTenant(session?.tenant, () => renderShell(content, settings));
+  return runWithTenant(session?.tenant, () => renderShell(content, settings, banners));
 }
+
+type Banners = { impersonating?: { clientId: number; clientName: string }; announcements: { id: number; message: string }[] };
 
 function FeatureOff() {
   return (
@@ -68,7 +75,7 @@ function blockedShell(reason: 'user-locked' | 'client-suspended') {
   );
 }
 
-async function renderShell(children: React.ReactNode, settings: ClientSettings) {
+async function renderShell(children: React.ReactNode, settings: ClientSettings, banners: Banners) {
   const co = companyProfile();
   const collect = collectionsSummary();
   const me = await currentUser();
@@ -80,6 +87,12 @@ async function renderShell(children: React.ReactNode, settings: ClientSettings) 
   return (
     <html lang="en" data-accent={accent} data-density={density}>
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
+        {banners.impersonating ? (
+          <div className="impersonate-bar">
+            <span>Viewing <b>{banners.impersonating.clientName}</b> as their workspace — changes you make are saved to their data.</span>
+            <form action={stopImpersonating}><button type="submit">Stop viewing</button></form>
+          </div>
+        ) : null}
         <div className="frame">
           <Sidebar name={name} logo={co.logo} city={co.city || 'Copper procurement'} admin={me?.role === 'SUPER_ADMIN'} disabled={settings.disabled} />
           <main className="main">
@@ -87,6 +100,9 @@ async function renderShell(children: React.ReactNode, settings: ClientSettings) 
               <Breadcrumbs />
               <span className="topbar-date">{dateLong(today())}</span>
             </div>
+            {banners.announcements.map((a) => (
+              <div key={a.id} className="announce-bar"><span className="announce-dot" />{a.message}</div>
+            ))}
             {bannerOn ? <CollectionsBanner count={collect.count} total={inr(collect.total)} overdue={inr(collect.overdue)} hasOverdue={collect.overdue > 1} /> : null}
             <SectionTabs disabled={settings.disabled} />
             {children}
