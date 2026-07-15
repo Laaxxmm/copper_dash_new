@@ -5,7 +5,7 @@ import Nav from './Nav';
 import { logout } from '@/lib/auth-actions';
 
 /** Collapsible dark rail. Remembers the user's choice; auto-collapses under 980px. */
-export default function Sidebar({ name, logo, city, admin = false }: { name: string; logo: string; city: string; admin?: boolean }) {
+export default function Sidebar({ name, logo, city, admin = false, disabled = [] }: { name: string; logo: string; city: string; admin?: boolean; disabled?: string[] }) {
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 980px)');
@@ -30,7 +30,7 @@ export default function Sidebar({ name, logo, city, admin = false }: { name: str
         </div>
         <button type="button" className="sb-toggle" onClick={toggle} aria-label={collapsed ? 'Expand' : 'Collapse'} title={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? '»' : '«'}</button>
       </div>
-      <Nav admin={admin} />
+      <Nav admin={admin} disabled={disabled} />
       <div className="nav-foot">
         <form action={logout}><button type="submit" className="nav-signout">{collapsed ? '⎋' : 'Sign out'}</button></form>
         <div style={{ marginTop: 10 }}>All figures live from the register. Prices in ₹ per kg unless marked.</div>

@@ -1,4 +1,5 @@
-import { withTenantPage } from '@/lib/tenant-resolve';
+import { withTenantPage, resolveSession } from '@/lib/tenant-resolve';
+import { DEFAULT_SETTINGS } from '@/lib/control-db';
 import { PageHead } from '@/components/ui';
 import AutoRefresh from '@/components/AutoRefresh';
 import { copperNews, liveLme, liveMarket, timeAgo } from '@/lib/market';
@@ -9,9 +10,16 @@ import { perKg } from '@/lib/format';
 export const dynamic = 'force-dynamic';
 
 async function NewsPage() {
-  const [news, lq, comex] = await Promise.all([copperNews(20), liveLme(), liveMarket()]);
+  const [allNews, lq, comex] = await Promise.all([copperNews(20), liveLme(), liveMarket()]);
   const strip = lmeStrip(lq?.usd_mt);
   const csp = cspToday();
+  const settings = (await resolveSession())?.settings ?? DEFAULT_SETTINGS;
+
+  // Filter headlines to this client's keywords, if they set any.
+  const keywords = settings.newsKeywords.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean);
+  const matched = keywords.length ? allNews.filter((n) => keywords.some((k) => n.title.toLowerCase().includes(k))) : allNews;
+  const news = matched.length ? matched : allNews;
+  const filteredEmpty = keywords.length > 0 && matched.length === 0 && allNews.length > 0;
 
   return (
     <>
@@ -56,9 +64,15 @@ async function NewsPage() {
         </p>
       ) : null}
 
+      {settings.priceSource !== 'LME' ? (
+        <p className="chart-note" style={{ marginTop: 6 }}>Your reference market is set to <b>{settings.priceSource}</b>. Rates are still computed on LME — this is the price you watch.</p>
+      ) : null}
+
       <div className="card section-gap">
         <div className="card-pad" style={{ paddingBottom: 0 }}>
           <div className="card-title">Copper headlines — live</div>
+          {keywords.length && !filteredEmpty ? <p className="muted" style={{ margin: '4px 0 0' }}>Filtered to: {keywords.join(', ')}</p> : null}
+          {filteredEmpty ? <p className="muted" style={{ margin: '4px 0 0' }}>Nothing matched your keywords ({keywords.join(', ')}) — showing all copper headlines.</p> : null}
         </div>
         {news.length === 0 ? (
           <p className="muted" style={{ padding: '14px 20px 20px' }}>

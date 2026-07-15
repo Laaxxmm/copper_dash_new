@@ -37,9 +37,13 @@ const ADMIN_LINK = {
   icon: <svg {...S}><path d="M12 3l7 4v5c0 4.4-3 7.5-7 9-4-1.5-7-4.6-7-9V7z" /><path d="M9.5 12l2 2 3.5-4" /></svg>,
 } as const;
 
-export default function Nav({ admin = false }: { admin?: boolean }) {
+// Top-level links that a feature flag can hide.
+const LINK_FEATURE: Record<string, string> = { '/sales': 'sales', '/finance': 'finance' };
+
+export default function Nav({ admin = false, disabled = [] }: { admin?: boolean; disabled?: string[] }) {
   const pathname = usePathname();
-  const links = admin ? [...LINKS, ADMIN_LINK] : LINKS;
+  const visible = LINKS.filter((l) => { const f = LINK_FEATURE[l.href]; return !f || !disabled.includes(f); });
+  const links = admin ? [...visible, ADMIN_LINK] : visible;
   return (
     <>
       <Link href="/add" className="nav-add" title="Add entry">

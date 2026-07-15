@@ -3,10 +3,12 @@ import { notFound } from 'next/navigation';
 import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { requireSuperAdmin } from '@/lib/current-user';
-import { clientById, usersByClient, seatLimit } from '@/lib/control-db';
+import { clientById, usersByClient, seatLimit, clientSettings } from '@/lib/control-db';
 import {
   addClientUser, lockUser, unlockUser, resetUserPassword, changeUserRole, removeUser, setSeats,
+  saveFeatures, saveClientData,
 } from '@/lib/client-actions';
+import { FEATURES, PRICE_SOURCES, ACCENTS } from '@/lib/features';
 import { dateShort } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +27,7 @@ async function ClientDetail({ params, searchParams }: {
   const users = usersByClient(id);
   const seats = seatLimit(id);
   const full = users.length >= seats;
+  const settings = clientSettings(id);
 
   return (
     <>
@@ -134,6 +137,52 @@ async function ClientDetail({ params, searchParams }: {
                 <p className="muted" style={{ margin: 0 }}>{seats - users.length} of {seats} seats free.</p>
               </form>
             )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid two-col section-gap">
+        <div>
+          <div className="section-title">Features</div>
+          <div className="card card-pad">
+            <form action={saveFeatures} className="stack">
+              <input type="hidden" name="client_id" value={id} />
+              {FEATURES.map((f) => (
+                <label key={f.key} className="chk">
+                  <input type="checkbox" name={`feat_${f.key}`} defaultChecked={!settings.disabled.includes(f.key)} />
+                  <span><b>{f.label}</b><div className="muted" style={{ fontWeight: 400 }}>{f.desc}</div></span>
+                </label>
+              ))}
+              <button className="btn-order" type="submit">Save features</button>
+              <p className="muted" style={{ margin: 0 }}>Unchecked sections disappear from this client’s menu and their pages are blocked.</p>
+            </form>
+          </div>
+        </div>
+
+        <div>
+          <div className="section-title">Data sources & branding</div>
+          <div className="card card-pad">
+            <form action={saveClientData} className="stack">
+              <input type="hidden" name="client_id" value={id} />
+              <label className="fld">Live price they see
+                <select name="price_source" defaultValue={settings.priceSource}>
+                  {PRICE_SOURCES.map((s) => <option key={s} value={s}>{s === 'MANUAL' ? 'Manual (entered rate)' : s}</option>)}
+                </select>
+              </label>
+              <label className="fld">News keywords <span className="muted">(comma-separated; blank = all copper)</span>
+                <input name="news_keywords" defaultValue={settings.newsKeywords} placeholder="copper, cathode, LME" autoComplete="off" />
+              </label>
+              <label className="fld">Brand name <span className="muted">(overrides their own)</span>
+                <input name="brand_name" defaultValue={settings.brandName} placeholder="leave blank to use theirs" autoComplete="off" />
+              </label>
+              <label className="fld">Accent colour
+                <select name="brand_accent" defaultValue={settings.brandAccent}>
+                  <option value="">Use their own</option>
+                  {ACCENTS.map((a) => <option key={a} value={a}>{a[0].toUpperCase() + a.slice(1)}</option>)}
+                </select>
+              </label>
+              <button className="btn-order" type="submit">Save</button>
+            </form>
           </div>
         </div>
       </div>

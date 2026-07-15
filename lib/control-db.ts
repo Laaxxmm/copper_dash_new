@@ -168,6 +168,30 @@ export function setClientConfig(clientId: number, key: string, value: string) {
 export function seatLimit(clientId: number): number {
   return Number(clientConfig(clientId, 'seats') ?? 5) || 5;
 }
+
+// ---------- per-client features + data sources + branding (G4) ----------
+/** Feature keys explicitly turned OFF for a client (absent = on). */
+export function disabledFeatures(clientId: number): string[] {
+  return (getControlDb().prepare(`SELECT feature FROM client_flags WHERE client_id = ? AND enabled = 0`).all(clientId) as { feature: string }[]).map((r) => r.feature);
+}
+export function setFeature(clientId: number, feature: string, enabled: boolean) {
+  getControlDb().prepare(
+    `INSERT INTO client_flags (client_id, feature, enabled) VALUES (?,?,?)
+     ON CONFLICT(client_id, feature) DO UPDATE SET enabled = excluded.enabled`).run(clientId, feature, enabled ? 1 : 0);
+}
+
+export type ClientSettings = { disabled: string[]; priceSource: string; newsKeywords: string; brandName: string; brandAccent: string };
+export function clientSettings(clientId: number): ClientSettings {
+  return {
+    disabled: disabledFeatures(clientId),
+    priceSource: clientConfig(clientId, 'price_source') ?? 'LME',
+    newsKeywords: clientConfig(clientId, 'news_keywords') ?? '',
+    brandName: clientConfig(clientId, 'brand_name') ?? '',
+    brandAccent: clientConfig(clientId, 'brand_accent') ?? '',
+  };
+}
+/** Defaults for a session with no client (global super-admin): everything on. */
+export const DEFAULT_SETTINGS: ClientSettings = { disabled: [], priceSource: 'LME', newsKeywords: '', brandName: '', brandAccent: '' };
 export function listUsers(): (ControlUser & { client_name: string | null; last_login: string | null })[] {
   return getControlDb().prepare(
     `SELECT u.id, u.client_id, u.username, u.email, u.role, u.status, u.perms_json, u.last_login,

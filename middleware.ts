@@ -20,7 +20,11 @@ export async function middleware(req: NextRequest) {
     url.search = '';
     return NextResponse.redirect(url);
   }
-  return NextResponse.next();
+  // Forward the path so the (node) layout can gate disabled features — feature
+  // flags live in the control DB, which the edge runtime can't read.
+  const headers = new Headers(req.headers);
+  headers.set('x-pathname', pathname);
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = {

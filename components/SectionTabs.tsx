@@ -18,12 +18,16 @@ const SALES_TABS = [
   { href: '/sales/inbox', label: 'Customer inbox' },
 ];
 
+// A tab a feature flag can hide.
+const TAB_FEATURE: Record<string, string> = { '/news': 'market', '/inbox': 'inbox', '/sales/inbox': 'inbox' };
+
 /** Secondary tab bar for the active section. Nothing on Dashboard/Finance/Settings. */
-export default function SectionTabs() {
+export default function SectionTabs({ disabled = [] }: { disabled?: string[] }) {
   const pathname = usePathname();
   const inPurchase = PURCHASE_ROUTES.some((r) => pathname.startsWith(r));
   const inSales = pathname.startsWith('/sales');
-  const tabs = inPurchase ? PURCHASE_TABS : inSales ? SALES_TABS : null;
+  const base = inPurchase ? PURCHASE_TABS : inSales ? SALES_TABS : null;
+  const tabs = base?.filter((t) => { const f = TAB_FEATURE[t.href]; return !f || !disabled.includes(f); });
   if (!tabs) return null;
   return (
     <div className="section-tabs">

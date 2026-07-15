@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Newsreader, Manrope, Space_Grotesk } from 'next/font/google';
+import { headers } from 'next/headers';
 import './globals.css';
 import Sidebar from '@/components/Sidebar';
 import SectionTabs from '@/components/SectionTabs';
@@ -11,6 +12,8 @@ import { currentUser } from '@/lib/current-user';
 import { resolveSession } from '@/lib/tenant-resolve';
 import { runWithTenant } from '@/lib/tenant';
 import { logout } from '@/lib/auth-actions';
+import { featureForPath } from '@/lib/features';
+import { DEFAULT_SETTINGS, type ClientSettings } from '@/lib/control-db';
 import { dateLong, inr, today } from '@/lib/format';
 
 const display = Newsreader({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-display' });
@@ -28,9 +31,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // instead of the app. Enforced here because edge middleware can't read the
   // control DB. Their DB is still never shown to anyone else.
   if (session && session.access !== 'ok') return blockedShell(session.access);
+  const settings = session?.settings ?? DEFAULT_SETTINGS;
+  // Route guard: a disabled feature's pages show a notice, not the data.
+  const feat = featureForPath((await headers()).get('x-pathname') ?? '');
+  const content = feat && settings.disabled.includes(feat) ? <FeatureOff /> : children;
   // Scope covers the layout's own data (below). Child pages render as separate
   // work and re-enter the scope themselves via withTenantPage.
-  return runWithTenant(session?.tenant, () => renderShell(children));
+  return runWithTenant(session?.tenant, () => renderShell(content, settings));
+}
+
+function FeatureOff() {
+  return (
+    <div className="card card-pad" style={{ textAlign: 'center', padding: '48px 24px' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, marginBottom: 8 }}>Not enabled</h2>
+      <p className="muted">This section isn’t part of your plan. Ask your administrator to turn it on.</p>
+    </div>
+  );
 }
 
 function blockedShell(reason: 'user-locked' | 'client-suspended') {
@@ -52,25 +68,27 @@ function blockedShell(reason: 'user-locked' | 'client-suspended') {
   );
 }
 
-async function renderShell(children: React.ReactNode) {
+async function renderShell(children: React.ReactNode, settings: ClientSettings) {
   const co = companyProfile();
   const collect = collectionsSummary();
   const me = await currentUser();
-  const accent = getSetting('ui:accent', 'copper');
+  // Super-admin branding (control DB) overrides the client's own profile / appearance.
+  const name = settings.brandName || co.name;
+  const accent = settings.brandAccent || getSetting('ui:accent', 'copper');
   const density = getSetting('ui:density', 'comfortable');
   const bannerOn = getSetting('ui:banner', 'on') !== 'off';
   return (
     <html lang="en" data-accent={accent} data-density={density}>
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         <div className="frame">
-          <Sidebar name={co.name} logo={co.logo} city={co.city || 'Copper procurement'} admin={me?.role === 'SUPER_ADMIN'} />
+          <Sidebar name={name} logo={co.logo} city={co.city || 'Copper procurement'} admin={me?.role === 'SUPER_ADMIN'} disabled={settings.disabled} />
           <main className="main">
             <div className="topbar">
               <Breadcrumbs />
               <span className="topbar-date">{dateLong(today())}</span>
             </div>
             {bannerOn ? <CollectionsBanner count={collect.count} total={inr(collect.total)} overdue={inr(collect.overdue)} hasOverdue={collect.overdue > 1} /> : null}
-            <SectionTabs />
+            <SectionTabs disabled={settings.disabled} />
             {children}
           </main>
         </div>

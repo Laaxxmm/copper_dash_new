@@ -9,8 +9,9 @@ import {
   createClient, createUser, clientBySlug, clientById, userByUsername, userById,
   setClientStatus, deleteClientRow, auditLog, tenantDbPath,
   usersByClient, setUserStatus, setUserRole, updateUserPassword, deleteUser,
-  seatLimit, setClientConfig,
+  seatLimit, setClientConfig, setFeature,
 } from './control-db';
+import { FEATURE_KEYS, PRICE_SOURCES, ACCENTS } from './features';
 import { openBusinessDb } from './db';
 
 const backErr = (clientId: number, msg: string) => redirect(`/admin/clients/${clientId}?err=` + encodeURIComponent(msg));
@@ -175,4 +176,35 @@ export async function setSeats(fd: FormData) {
   auditLog(me.id, clientId, 'client.seats', String(seats));
   revalidatePath(`/admin/clients/${clientId}`);
   backDone(clientId, `Seat limit set to ${seats}.`);
+}
+
+// ---------- per-client features + data sources + branding (G4) ----------
+export async function saveFeatures(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id'));
+  if (!clientById(clientId)) backErr(clientId, 'That client no longer exists.');
+  const off: string[] = [];
+  for (const key of FEATURE_KEYS) {
+    const on = fd.get(`feat_${key}`) === 'on';
+    setFeature(clientId, key, on);
+    if (!on) off.push(key);
+  }
+  auditLog(me.id, clientId, 'client.features', off.length ? `off: ${off.join(', ')}` : 'all on');
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, 'Features updated.');
+}
+
+export async function saveClientData(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id'));
+  if (!clientById(clientId)) backErr(clientId, 'That client no longer exists.');
+  const priceSource = String(fd.get('price_source') || 'LME');
+  const accent = String(fd.get('brand_accent') || '');
+  setClientConfig(clientId, 'price_source', (PRICE_SOURCES as readonly string[]).includes(priceSource) ? priceSource : 'LME');
+  setClientConfig(clientId, 'news_keywords', String(fd.get('news_keywords') || '').trim());
+  setClientConfig(clientId, 'brand_name', String(fd.get('brand_name') || '').trim());
+  setClientConfig(clientId, 'brand_accent', (ACCENTS as readonly string[]).includes(accent) ? accent : '');
+  auditLog(me.id, clientId, 'client.data', priceSource);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, 'Data sources & branding saved.');
 }
