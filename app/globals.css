@@ -923,7 +923,11 @@ a.btn, a.btn-sm { color: #fff; }
 .btn-xs.danger:hover { background: var(--bad-wash); }
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .fld { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
-.fld input { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-weight: 500; color: var(--ink); background: var(--card); }
-.fld input:focus { outline: none; border-color: var(--accent); }
+.fld input, .fld select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-weight: 500; color: var(--ink); background: var(--card); }
+.fld input:focus, .fld select:focus { outline: none; border-color: var(--accent); }
+.seat-form { display: flex; align-items: center; gap: 8px; }
+.seat-form label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.seat-form input { width: 64px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.reset-form { display: flex; flex-direction: column; gap: 12px; }
 .chk { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
 .chk input { margin-top: 2px; }

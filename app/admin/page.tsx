@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { requireSuperAdmin } from '@/lib/current-user';
@@ -43,6 +44,7 @@ async function AdminPage({ searchParams }: { searchParams: Promise<{ err?: strin
                     <td>{dateShort(c.created_date)}</td>
                     <td>
                       <div className="row-actions">
+                        <Link href={`/admin/clients/${c.id}`} className="btn-xs">Manage</Link>
                         {c.status === 'suspended'
                           ? <form action={enableClient}><input type="hidden" name="id" value={c.id} /><button className="btn-xs">Enable</button></form>
                           : <form action={suspendClient}><input type="hidden" name="id" value={c.id} /><button className="btn-xs" disabled={c.slug === 'default'}>Suspend</button></form>}

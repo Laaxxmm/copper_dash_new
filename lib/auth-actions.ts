@@ -1,13 +1,15 @@
 'use server';
 
-import { withTenant } from '@/lib/tenant-resolve';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE, SESSION_MAX_AGE, signSession } from './auth';
 import { userByUsername, recordLoginAttempt, touchLastLogin, recentFailures } from './control-db';
 import { verifyPassword } from './password';
 
-async function _login(formData: FormData) {
+// Auth actions touch only the control DB + cookies (no tenant business DB), so
+// they are NOT tenant-wrapped — and must stay usable even when the caller's
+// account is locked (so they can reach the login screen and sign out).
+export async function login(formData: FormData) {
   const user = String(formData.get('user') ?? '').trim();
   const password = String(formData.get('password') ?? '');
   const next = String(formData.get('next') ?? '/') || '/';
@@ -33,11 +35,8 @@ async function _login(formData: FormData) {
   redirect(next.startsWith('/') ? next : '/');
 }
 
-async function _logout() {
+export async function logout() {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
   redirect('/login');
 }
-
-export const login = withTenant(_login);
-export const logout = withTenant(_logout);

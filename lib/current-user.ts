@@ -1,18 +1,12 @@
-// Server-side session → user resolution. The cookie signs only the userId; the
-// role/client/status are resolved here from the control DB each request, so a
-// tampered cookie can't elevate. Node runtime (server components / actions).
-import { cookies } from 'next/headers';
-import { SESSION_COOKIE, verifySession } from './auth';
-import { userById, type ControlUser } from './control-db';
+// Server-side session → user. One source of truth: resolveSession() reads the
+// cookie, looks up the control DB, and returns a user only when access is 'ok'
+// (active user, active client). Node runtime (server components / actions).
+import { resolveSession } from './tenant-resolve';
+import type { ControlUser } from './control-db';
 
 export async function currentUser(): Promise<ControlUser | null> {
-  const raw = (await cookies()).get(SESSION_COOKIE)?.value;
-  const payload = await verifySession(raw);
-  const id = Number(payload);
-  if (!id || !Number.isFinite(id)) return null;
-  const u = userById(id);
-  if (!u || u.status !== 'active') return null;
-  return u;
+  const s = await resolveSession();
+  return s && s.access === 'ok' ? s.user : null;
 }
 
 export async function requireSuperAdmin(): Promise<ControlUser> {

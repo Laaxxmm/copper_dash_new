@@ -8,7 +8,7 @@
 // (each page's body, each server action) via the wrappers in tenant-resolve.ts.
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-export type TenantCtx = { clientId: number; dbPath: string; suspended?: boolean };
+export type TenantCtx = { clientId: number; dbPath: string };
 
 const als = new AsyncLocalStorage<TenantCtx>();
 

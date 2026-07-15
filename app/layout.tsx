@@ -8,7 +8,7 @@ import CollectionsBanner from '@/components/CollectionsBanner';
 import { companyProfile, getSetting } from '@/lib/company';
 import { collectionsSummary } from '@/lib/queries';
 import { currentUser } from '@/lib/current-user';
-import { resolveTenant } from '@/lib/tenant-resolve';
+import { resolveSession } from '@/lib/tenant-resolve';
 import { runWithTenant } from '@/lib/tenant';
 import { logout } from '@/lib/auth-actions';
 import { dateLong, inr, today } from '@/lib/format';
@@ -23,26 +23,27 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const tenant = await resolveTenant();
-  // A suspended client is blocked from the whole app (their own DB is never
-  // shown to anyone else, but they can't use it while on hold). Enforced here
-  // because edge middleware can't read the control DB.
-  if (tenant?.suspended) return suspendedShell();
+  const session = await resolveSession();
+  // Blocked accounts (locked user, or suspended client) get a dead-end notice
+  // instead of the app. Enforced here because edge middleware can't read the
+  // control DB. Their DB is still never shown to anyone else.
+  if (session && session.access !== 'ok') return blockedShell(session.access);
   // Scope covers the layout's own data (below). Child pages render as separate
   // work and re-enter the scope themselves via withTenantPage.
-  return runWithTenant(tenant, () => renderShell(children));
+  return runWithTenant(session?.tenant, () => renderShell(children));
 }
 
-function suspendedShell() {
+function blockedShell(reason: 'user-locked' | 'client-suspended') {
+  const [title, msg] = reason === 'user-locked'
+    ? ['Account locked', 'Your access has been locked. Please contact your administrator to restore it.']
+    : ['Workspace on hold', 'Access to this workspace has been paused. Please contact your administrator to restore it.'];
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, fontFamily: 'var(--font-body)' }}>
           <div style={{ maxWidth: 460, textAlign: 'center' }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, marginBottom: 10 }}>Workspace on hold</h1>
-            <p style={{ color: '#6b6257', lineHeight: 1.6, marginBottom: 22 }}>
-              Access to this workspace has been paused. Please contact your administrator to restore it.
-            </p>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, marginBottom: 10 }}>{title}</h1>
+            <p style={{ color: '#6b6257', lineHeight: 1.6, marginBottom: 22 }}>{msg}</p>
             <form action={logout}><button type="submit" className="btn-order outline">Sign out</button></form>
           </div>
         </div>

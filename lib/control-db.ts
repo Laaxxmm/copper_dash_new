@@ -135,6 +135,39 @@ export function deleteClientRow(id: number) {
   for (const t of ['users', 'client_flags', 'client_config']) db.prepare(`DELETE FROM ${t} WHERE client_id = ?`).run(id);
   db.prepare(`DELETE FROM clients WHERE id = ?`).run(id);
 }
+
+// ---------- per-client users + config (G3) ----------
+export type ClientUserRow = { id: number; username: string; email: string | null; role: string; status: string; last_login: string | null; created_date: string };
+export function usersByClient(clientId: number): ClientUserRow[] {
+  return getControlDb().prepare(
+    `SELECT id, username, email, role, status, last_login, created_date FROM users WHERE client_id = ? ORDER BY role, username`).all(clientId) as ClientUserRow[];
+}
+export function setUserStatus(id: number, status: 'active' | 'locked') {
+  getControlDb().prepare(`UPDATE users SET status = ? WHERE id = ?`).run(status, id);
+}
+export function setUserRole(id: number, role: string) {
+  getControlDb().prepare(`UPDATE users SET role = ? WHERE id = ?`).run(role, id);
+}
+export function updateUserPassword(id: number, password: string) {
+  const { hash, salt } = hashPassword(password);
+  getControlDb().prepare(`UPDATE users SET password_hash = ?, salt = ? WHERE id = ?`).run(hash, salt, id);
+}
+export function deleteUser(id: number) {
+  getControlDb().prepare(`DELETE FROM users WHERE id = ?`).run(id);
+}
+
+export function clientConfig(clientId: number, key: string): string | undefined {
+  return (getControlDb().prepare(`SELECT value FROM client_config WHERE client_id = ? AND key = ?`).get(clientId, key) as { value: string } | undefined)?.value;
+}
+export function setClientConfig(clientId: number, key: string, value: string) {
+  getControlDb().prepare(
+    `INSERT INTO client_config (client_id, key, value) VALUES (?,?,?)
+     ON CONFLICT(client_id, key) DO UPDATE SET value = excluded.value`).run(clientId, key, value);
+}
+/** Seat limit for a client (default 5). */
+export function seatLimit(clientId: number): number {
+  return Number(clientConfig(clientId, 'seats') ?? 5) || 5;
+}
 export function listUsers(): (ControlUser & { client_name: string | null; last_login: string | null })[] {
   return getControlDb().prepare(
     `SELECT u.id, u.client_id, u.username, u.email, u.role, u.status, u.perms_json, u.last_login,

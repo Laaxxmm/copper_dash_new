@@ -6,10 +6,16 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from './current-user';
 import {
-  createClient, createUser, clientBySlug, clientById, userByUsername,
+  createClient, createUser, clientBySlug, clientById, userByUsername, userById,
   setClientStatus, deleteClientRow, auditLog, tenantDbPath,
+  usersByClient, setUserStatus, setUserRole, updateUserPassword, deleteUser,
+  seatLimit, setClientConfig,
 } from './control-db';
 import { openBusinessDb } from './db';
+
+const backErr = (clientId: number, msg: string) => redirect(`/admin/clients/${clientId}?err=` + encodeURIComponent(msg));
+const backDone = (clientId: number, msg: string) => redirect(`/admin/clients/${clientId}?done=` + encodeURIComponent(msg));
+const ROLES = ['CLIENT_ADMIN', 'STAFF'];
 
 function kebab(s: string): string {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'client';
@@ -74,4 +80,99 @@ export async function deleteClientAction(fd: FormData) {
   auditLog(me.id, id, 'client.delete', c!.name);
   revalidatePath('/admin');
   redirect('/admin?done=' + encodeURIComponent(`Deleted “${c!.name}”. Its data file was kept on disk.`));
+}
+
+// ---------- per-client user management (G3) ----------
+export async function addClientUser(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id'));
+  const username = String(fd.get('username') || '').trim();
+  const email = String(fd.get('email') || '').trim() || null;
+  const password = String(fd.get('password') || '');
+  const role = String(fd.get('role') || 'STAFF');
+
+  if (!clientById(clientId)) backErr(clientId, 'That client no longer exists.');
+  if (!username || password.length < 6) backErr(clientId, 'A username and a 6+ character password are required.');
+  if (!ROLES.includes(role)) backErr(clientId, 'Pick a valid role.');
+  if (usersByClient(clientId).length >= seatLimit(clientId)) backErr(clientId, `All ${seatLimit(clientId)} seats are in use — raise the seat limit first.`);
+  if (userByUsername(username)) backErr(clientId, `The username “${username}” is already taken.`);
+
+  createUser({ clientId, username, email, password, role });
+  auditLog(me.id, clientId, 'user.create', `${username} (${role})`);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `Added ${username}.`);
+}
+
+/** Guarded fetch: a valid non-super-admin user in this client. */
+function targetUser(clientId: number, id: number, verb: string) {
+  const u = userById(id);
+  if (!u || u.client_id !== clientId) backErr(clientId, 'That user is not in this client.');
+  if (u!.role === 'SUPER_ADMIN') backErr(clientId, `The super-admin can’t be ${verb}.`);
+  return u!;
+}
+
+export async function lockUser(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id')), id = Number(fd.get('id'));
+  const u = targetUser(clientId, id, 'locked');
+  setUserStatus(id, 'locked');
+  auditLog(me.id, clientId, 'user.lock', u.username);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `${u.username} is locked out.`);
+}
+
+export async function unlockUser(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id')), id = Number(fd.get('id'));
+  const u = targetUser(clientId, id, 'unlocked');
+  setUserStatus(id, 'active');
+  auditLog(me.id, clientId, 'user.unlock', u.username);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `${u.username} can sign in again.`);
+}
+
+export async function resetUserPassword(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id')), id = Number(fd.get('id'));
+  const password = String(fd.get('password') || '');
+  const u = targetUser(clientId, id, 'reset');
+  if (password.length < 6) backErr(clientId, 'New password must be at least 6 characters.');
+  updateUserPassword(id, password);
+  auditLog(me.id, clientId, 'user.reset_pw', u.username);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `Password reset for ${u.username}.`);
+}
+
+export async function changeUserRole(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id')), id = Number(fd.get('id'));
+  const role = String(fd.get('role') || '');
+  const u = targetUser(clientId, id, 'changed');
+  if (!ROLES.includes(role)) backErr(clientId, 'Pick a valid role.');
+  setUserRole(id, role);
+  auditLog(me.id, clientId, 'user.role', `${u.username} → ${role}`);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `${u.username} is now ${role === 'CLIENT_ADMIN' ? 'a client admin' : 'staff'}.`);
+}
+
+export async function removeUser(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id')), id = Number(fd.get('id'));
+  const u = targetUser(clientId, id, 'removed');
+  deleteUser(id);
+  auditLog(me.id, clientId, 'user.delete', u.username);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `Removed ${u.username}.`);
+}
+
+export async function setSeats(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id'));
+  const seats = Math.max(1, Math.min(100, Number(fd.get('seats')) || 5));
+  if (!clientById(clientId)) backErr(clientId, 'That client no longer exists.');
+  if (seats < usersByClient(clientId).length) backErr(clientId, `There are already ${usersByClient(clientId).length} users — set the limit at or above that.`);
+  setClientConfig(clientId, 'seats', String(seats));
+  auditLog(me.id, clientId, 'client.seats', String(seats));
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `Seat limit set to ${seats}.`);
 }
