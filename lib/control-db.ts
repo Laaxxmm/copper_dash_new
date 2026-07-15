@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { join, dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { hashPassword } from './password';
+import { FEATURE_KEYS } from './features';
 
 function bizPath(): string {
   return process.env.DATABASE_PATH || join(process.cwd(), 'data', 'copper.db');
@@ -29,6 +30,7 @@ const CONTROL_TABLES = [
   `CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, at TEXT NOT NULL, actor_user_id INTEGER, client_id INTEGER, action TEXT NOT NULL, detail TEXT)`,
   `CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY, username TEXT, at TEXT NOT NULL, ok INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS announcements (id INTEGER PRIMARY KEY, at TEXT NOT NULL, scope TEXT NOT NULL DEFAULT 'all', client_id INTEGER, message TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1)`,
+  `CREATE TABLE IF NOT EXISTS plans (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, features_json TEXT NOT NULL DEFAULT '[]', seat_limit INTEGER NOT NULL DEFAULT 5, record_limit INTEGER NOT NULL DEFAULT 0, created_date TEXT NOT NULL)`,
 ];
 
 let cached: DatabaseSync | null = (globalThis as unknown as { __cbControl?: DatabaseSync }).__cbControl ?? null;
@@ -221,6 +223,37 @@ export function createAnnouncement(scope: 'all' | 'client', clientId: number | n
 }
 export function setAnnouncementActive(id: number, active: boolean) {
   getControlDb().prepare(`UPDATE announcements SET active = ? WHERE id = ?`).run(active ? 1 : 0, id);
+}
+
+// ---------- plans + limits (G6) ----------
+export type Plan = { id: number; name: string; features_json: string; seat_limit: number; record_limit: number; created_date: string };
+export function listPlans(): Plan[] {
+  return getControlDb().prepare(`SELECT * FROM plans ORDER BY name`).all() as Plan[];
+}
+export function planById(id: number): Plan | undefined {
+  return getControlDb().prepare(`SELECT * FROM plans WHERE id = ?`).get(id) as Plan | undefined;
+}
+export function createPlan(name: string, features: string[], seatLimit: number, recordLimit: number) {
+  getControlDb().prepare(`INSERT INTO plans (name, features_json, seat_limit, record_limit, created_date) VALUES (?,?,?,?,?)`)
+    .run(name, JSON.stringify(features), seatLimit, recordLimit, new Date().toISOString().slice(0, 10));
+}
+export function deletePlan(id: number) {
+  getControlDb().prepare(`DELETE FROM plans WHERE id = ?`).run(id);
+}
+/** Apply a plan to a client: its feature set, seat limit, and record limit in one move. */
+export function assignPlan(clientId: number, planId: number): Plan | undefined {
+  const p = planById(planId);
+  if (!p) return undefined;
+  const feats = JSON.parse(p.features_json) as string[];
+  for (const key of FEATURE_KEYS) setFeature(clientId, key, feats.includes(key));
+  setClientConfig(clientId, 'seats', String(p.seat_limit));
+  setClientConfig(clientId, 'record_limit', String(p.record_limit));
+  getControlDb().prepare(`UPDATE clients SET plan = ? WHERE id = ?`).run(p.name, clientId);
+  return p;
+}
+/** Advisory record cap for a client (0 = unlimited). */
+export function recordLimit(clientId: number): number {
+  return Number(clientConfig(clientId, 'record_limit') ?? 0) || 0;
 }
 export function listUsers(): (ControlUser & { client_name: string | null; last_login: string | null })[] {
   return getControlDb().prepare(

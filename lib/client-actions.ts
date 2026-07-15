@@ -13,6 +13,7 @@ import {
   usersByClient, setUserStatus, setUserRole, updateUserPassword, deleteUser,
   seatLimit, setClientConfig, setFeature,
   createAnnouncement, setAnnouncementActive,
+  createPlan, deletePlan, assignPlan, planById,
 } from './control-db';
 import { FEATURE_KEYS, PRICE_SOURCES, ACCENTS } from './features';
 import { openBusinessDb } from './db';
@@ -252,4 +253,43 @@ export async function removeAnnouncement(fd: FormData) {
   auditLog(me.id, null, 'announcement.remove', String(id));
   revalidatePath('/admin');
   redirect('/admin?done=' + encodeURIComponent('Announcement removed.'));
+}
+
+// ---------- plans (G6) ----------
+export async function createPlanAction(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const name = String(fd.get('name') || '').trim();
+  const features = FEATURE_KEYS.filter((k) => fd.get(`feat_${k}`) === 'on');
+  const seatLimit = Math.max(1, Math.min(1000, Number(fd.get('seat_limit')) || 5));
+  const recordLimit = Math.max(0, Number(fd.get('record_limit')) || 0);
+  if (!name) redirect('/admin?err=' + encodeURIComponent('Give the plan a name.'));
+  try {
+    createPlan(name, features, seatLimit, recordLimit);
+  } catch {
+    redirect('/admin?err=' + encodeURIComponent(`A plan called “${name}” already exists.`));
+  }
+  auditLog(me.id, null, 'plan.create', name);
+  revalidatePath('/admin');
+  redirect('/admin?done=' + encodeURIComponent(`Plan “${name}” created.`));
+}
+
+export async function deletePlanAction(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const id = Number(fd.get('id'));
+  deletePlan(id);
+  auditLog(me.id, null, 'plan.delete', String(id));
+  revalidatePath('/admin');
+  redirect('/admin?done=' + encodeURIComponent('Plan deleted.'));
+}
+
+export async function assignPlanAction(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const clientId = Number(fd.get('client_id'));
+  const planId = Number(fd.get('plan_id'));
+  const plan = planById(planId);
+  if (!clientById(clientId) || !plan) backErr(clientId, 'Pick a client and a plan.');
+  assignPlan(clientId, planId);
+  auditLog(me.id, clientId, 'plan.assign', plan!.name);
+  revalidatePath(`/admin/clients/${clientId}`);
+  backDone(clientId, `Applied the “${plan!.name}” plan — features, seats and record limit updated.`);
 }

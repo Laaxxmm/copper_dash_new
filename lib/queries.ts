@@ -93,6 +93,12 @@ export function bookingsSummary() {
   };
 }
 
+/** Row counts for the current tenant's business DB — usage metrics for the admin console. */
+export function businessUsage() {
+  const n = (t: string) => get<{ n: number }>(`SELECT COUNT(*) n FROM ${t}`)?.n ?? 0;
+  return { bookings: n('bookings'), parties: n('parties'), invoices: n('invoices'), fixations: n('price_fixations') };
+}
+
 /** Quantity booked but with no price fixed yet — the live price risk. */
 export function unpricedExposure() {
   return all<{ kind: string; booking_no: string; party_name: string; qty_open: number; basis: string; booking_date: string }>(

@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { requireSuperAdmin } from '@/lib/current-user';
-import { listClients, listUsers, recentAudit, listAnnouncements } from '@/lib/control-db';
+import { listClients, listUsers, recentAudit, listAnnouncements, listPlans } from '@/lib/control-db';
 import {
   createClientAction, suspendClient, enableClient, deleteClientAction,
   impersonateClient, postAnnouncement, removeAnnouncement,
+  createPlanAction, deletePlanAction,
 } from '@/lib/client-actions';
+import { FEATURES } from '@/lib/features';
 import { dateShort } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +23,7 @@ async function AdminPage({ searchParams }: { searchParams: Promise<{ err?: strin
   const users = listUsers();
   const audit = recentAudit(25);
   const announcements = listAnnouncements();
+  const plans = listPlans();
 
   return (
     <>
@@ -88,6 +91,58 @@ async function AdminPage({ searchParams }: { searchParams: Promise<{ err?: strin
               <label className="chk"><input type="checkbox" name="seed" /> Load sample data to explore (otherwise start blank)</label>
               <button className="btn-order" type="submit">Create client →</button>
               <p className="muted" style={{ margin: 0 }}>A fresh database is created for this client. Nothing is shared with anyone else.</p>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid two-col section-gap">
+        <div>
+          <div className="section-title">Plans</div>
+          <div className="card"><div className="table-wrap">
+            <table className="data">
+              <thead><tr><th>Plan</th><th>Features</th><th>Seats</th><th>Records</th><th></th></tr></thead>
+              <tbody>
+                {plans.length === 0 ? (
+                  <tr><td colSpan={5} className="muted card-pad">No plans yet — create one to apply features + limits to clients in one move.</td></tr>
+                ) : plans.map((p) => {
+                  const feats = JSON.parse(p.features_json) as string[];
+                  return (
+                    <tr key={p.id}>
+                      <td className="cell-main">{p.name}</td>
+                      <td className="cell-sub">{feats.length ? FEATURES.filter((f) => feats.includes(f.key)).map((f) => f.label).join(', ') : 'core only'}</td>
+                      <td>{p.seat_limit}</td>
+                      <td>{p.record_limit || '∞'}</td>
+                      <td><form action={deletePlanAction}><input type="hidden" name="id" value={p.id} /><button className="btn-xs danger">Delete</button></form></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div></div>
+        </div>
+
+        <div>
+          <div className="section-title">New plan</div>
+          <div className="card card-pad">
+            <form action={createPlanAction} className="stack">
+              <label className="fld">Plan name
+                <input name="name" required placeholder="e.g. Starter, Pro" autoComplete="off" />
+              </label>
+              <div className="fld">Included features
+                {FEATURES.map((f) => (
+                  <label key={f.key} className="chk"><input type="checkbox" name={`feat_${f.key}`} defaultChecked /> {f.label}</label>
+                ))}
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <label className="fld">Seat limit
+                  <input name="seat_limit" type="number" min={1} max={1000} defaultValue={5} />
+                </label>
+                <label className="fld">Record limit <span className="muted">(0 = ∞)</span>
+                  <input name="record_limit" type="number" min={0} defaultValue={0} />
+                </label>
+              </div>
+              <button className="btn-order" type="submit">Create plan</button>
             </form>
           </div>
         </div>

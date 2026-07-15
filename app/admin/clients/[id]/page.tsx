@@ -3,11 +3,14 @@ import { notFound } from 'next/navigation';
 import { withTenantPage } from '@/lib/tenant-resolve';
 import { PageHead } from '@/components/ui';
 import { requireSuperAdmin } from '@/lib/current-user';
-import { clientById, usersByClient, seatLimit, clientSettings } from '@/lib/control-db';
+import { statSync, existsSync } from 'node:fs';
+import { clientById, usersByClient, seatLimit, clientSettings, listPlans, recordLimit } from '@/lib/control-db';
 import {
   addClientUser, lockUser, unlockUser, resetUserPassword, changeUserRole, removeUser, setSeats,
-  saveFeatures, saveClientData,
+  saveFeatures, saveClientData, assignPlanAction,
 } from '@/lib/client-actions';
+import { runWithTenant } from '@/lib/tenant';
+import { businessUsage } from '@/lib/queries';
 import { FEATURES, PRICE_SOURCES, ACCENTS } from '@/lib/features';
 import { dateShort } from '@/lib/format';
 
@@ -28,6 +31,13 @@ async function ClientDetail({ params, searchParams }: {
   const seats = seatLimit(id);
   const full = users.length >= seats;
   const settings = clientSettings(id);
+  const plans = listPlans();
+  const recLimit = recordLimit(id);
+  // Usage: read the managed client's own DB (enter its tenant scope explicitly).
+  const usage = client.db_path && existsSync(client.db_path)
+    ? runWithTenant({ clientId: id, dbPath: client.db_path }, () => businessUsage())
+    : { bookings: 0, parties: 0, invoices: 0, fixations: 0 };
+  const dbKb = client.db_path && existsSync(client.db_path) ? Math.round(statSync(client.db_path).size / 1024) : 0;
 
   return (
     <>
@@ -183,6 +193,45 @@ async function ClientDetail({ params, searchParams }: {
               </label>
               <button className="btn-order" type="submit">Save</button>
             </form>
+          </div>
+        </div>
+      </div>
+
+      <div className="section-gap">
+        <div className="section-title">Usage</div>
+        <div className="grid tiles">
+          <div className="card tile"><div className="t-label">Users</div><div className="t-value">{users.length}<span className="muted" style={{ fontSize: 15 }}> / {seats}</span></div><div className="t-note">of seat limit</div></div>
+          <div className="card tile"><div className="t-label">Orders</div><div className="t-value">{usage.bookings}{recLimit ? <span className="muted" style={{ fontSize: 15 }}> / {recLimit}</span> : null}</div><div className="t-note">{recLimit ? 'of record limit' : 'bookings'}</div></div>
+          <div className="card tile"><div className="t-label">Parties</div><div className="t-value">{usage.parties}</div><div className="t-note">suppliers + customers</div></div>
+          <div className="card tile"><div className="t-label">Database</div><div className="t-value">{dbKb >= 1024 ? `${(dbKb / 1024).toFixed(1)} MB` : `${dbKb} KB`}</div><div className="t-note">{usage.invoices} invoices · {usage.fixations} fixations</div></div>
+        </div>
+      </div>
+
+      <div className="grid two-col section-gap">
+        <div>
+          <div className="section-title">Plan</div>
+          <div className="card card-pad">
+            <p className="muted" style={{ marginTop: 0 }}>Current plan: <b style={{ color: 'var(--ink)' }}>{client.plan ?? 'none'}</b>. Applying a plan sets this client&apos;s features, seat limit and record limit in one move.</p>
+            {plans.length === 0 ? (
+              <p className="muted">No plans defined yet. Create one on the <Link href="/admin" style={{ fontWeight: 700 }}>admin console</Link>.</p>
+            ) : (
+              <form action={assignPlanAction} className="seat-form" style={{ gap: 10 }}>
+                <input type="hidden" name="client_id" value={id} />
+                <select name="plan_id" defaultValue="" style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 9 }}>
+                  <option value="" disabled>Choose a plan…</option>
+                  {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button className="btn-order" type="submit">Apply plan</button>
+              </form>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="section-title">Backup</div>
+          <div className="card card-pad">
+            <p className="muted" style={{ marginTop: 0 }}>Download this client&apos;s entire database as a single file — a point-in-time backup you can keep or restore.</p>
+            <a href={`/admin/clients/${id}/export`} className="btn-order" download>Download backup (.db)</a>
           </div>
         </div>
       </div>
