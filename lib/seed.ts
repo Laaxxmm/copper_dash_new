@@ -404,8 +404,8 @@ export function seedDemo(db: DatabaseSync) {
   const tplResale = tpl('Direct resale', 'Buy price + flat margin',
     [['Copper cost', 'BUY_COST', 'ADD', 0], ['Margin', 'FIXED', 'ADD', 6]]);
   const insSP = db.prepare(`INSERT INTO sale_products (customer_id, name, raw_product_id, template_id, fabrication_cost, notes, active, created_date) VALUES (?,?,?,?,?,?,1,?)`);
-  insSP.run(customerIds[1], '2.5mm drawn wire', prodBy('WIRE', 2.5), tplFine, 18, null, TODAY);
-  insSP.run(customerIds[0], '8mm rod (resale)', rod8, tplResale, 0, null, TODAY);
+  const spCrest = Number(insSP.run(customerIds[1], '2.5mm drawn wire', prodBy('WIRE', 2.5), tplFine, 18, null, TODAY).lastInsertRowid);
+  const spTrin = Number(insSP.run(customerIds[0], '8mm rod (resale)', rod8, tplResale, 0, null, TODAY).lastInsertRowid);
   insSP.run(customerIds[3], '1.6mm winding wire', w160, tplFine, 15, null, TODAY);
 
   // A few current-month matched deals (both priced, linked) so this month's profit is real
@@ -452,9 +452,52 @@ export function seedDemo(db: DatabaseSync) {
     'MISMATCH',
     'Sunfield Metals — PROFORMA INVOICE No: SM-2231  from sales@sunfield.com\n8 MM CC COPPER ROD  4,000 KG  Provisional\nLME USD 13460 + Premium USD 205 + Transaction USD 10 * Exchange @ 89.01 * Factor 5.5% + Handling INR 5900\nGST 18%  Total Net Value : 4800000.00');
 
-  // Customer PO — Trinetra confirms 5 MT against our PI.
+  // Supplier PI (new producer) — Dhruva, 2.50mm wire, 5 MT. Confirm → +5 MT agreed.
+  insCap.run(TODAY, 'PI', 'DCN-1088', supplierIds[2], null, prodBy('WIRE', 2.5),
+    parsed({ doc_type: 'PI', reference_no: 'DCN-1088', qty_mt: 5, lme_usd_mt: 13460, premium_usd_mt: 210, transaction_usd_mt: 10, factor_pct: 5.5, exchange_rate: 88.87, handling_inr_mt: 5900, computed_rate_inr_kg: 1288.5, computed_total: 6442500 }),
+    'PENDING',
+    'Dhruva Copper Nexus — PROFORMA INVOICE No: DCN-1088  from sales@dhruva.com\nTo: AURALIS COPPER WORKS (P) LTD, Coimbatore\n2.50 MM EC CU WIRE  5,000 KG  @ Provisional Price\nLME USD 13460.00 + Premium USD 210.00 + Transaction USD 10.00 * Exchange @ 88.87 (SBI TT) * Factor 5.5% + Handling INR 5900.00 Per 1000 KG\nGST 18%  Payment: 7 days credit');
+
+  // Supplier PO confirmation — Orbit accepts our enquiry for 10 MT rod. Confirm → +10 MT agreed.
+  insCap.run(TODAY, 'PO', 'OM-5521', supplierIds[3], null, rod8,
+    parsed({ doc_type: 'PO', reference_no: 'OM-5521', qty_mt: 10 }),
+    'PENDING',
+    'Orbit Metals — ORDER CONFIRMATION / PURCHASE ORDER No: OM-5521  from trade@orbitmetals.com\nTo: AURALIS COPPER WORKS (P) LTD\nWe confirm booking of 10 MT — 8 MM CC COPPER ROD against your enquiry of this week.\nPricing as per day price on date of lifting. Delivery ex-Mumbai, 15 days credit.');
+
+  // Supplier CANCEL — Orbit withdraws our sent PO-004. Confirm → PO-004 marked cancelled.
+  insCap.run(TODAY, 'CANCEL', 'PO-004', supplierIds[3], null, null,
+    parsed({ doc_type: 'CANCEL', reference_no: 'PO-004' }),
+    'PENDING',
+    'Orbit Metals — from trade@orbitmetals.com\nSub: Your PURCHASE ORDER No: PO-004 stands CANCELLED\nDue to non-availability of imported cathode this fortnight we regret that PO-004 (10 MT, 1.60 mm EC CU wire) stands cancelled. Advance if any will be returned in 3 working days.');
+
+  // ---------- Sales demo: two PIs sent to customers, awaiting their PO ----------
+  const insSalePi = db.prepare(`INSERT INTO sales_pi
+    (pi_no, customer_id, sale_product_id, booking_id, qty_mt, rate_inr_kg, base_amount, tax_amount, gross_amount, basis, status, created_date)
+    VALUES (?,?,?,NULL,?,?,?,?,?,?, 'SENT', ?)`);
+  const makeSalePi = (piNo: string, custId: number, spId: number | null, qty: number, rate: number) => {
+    const base = round(rate * qty * 1000 * 100) / 100;
+    const tax = round(base * 0.18 * 100) / 100;
+    insSalePi.run(piNo, custId, spId, qty, rate, base, tax, round((base + tax) * 100) / 100, 'DAY', TODAY);
+  };
+  makeSalePi('CPI-001', customerIds[0], spTrin, 5, round(rateOf(termOf(supplierIds[0], rod8)) + 6, 1));       // Trinetra ← pairs with PO TW-0912
+  makeSalePi('CPI-002', customerIds[1], spCrest, 4, round(rateOf(termOf(supplierIds[0], prodBy('WIRE', 2.5))) + 29, 1)); // Crestline ← pairs with their ack
+  makeSalePi('CPI-003', customerIds[2], null, 3, round(rateOf(termOf(supplierIds[3], w160)) + 8, 1));        // Vega ← pairs with PO VC-3310
+
+  // Customer PO — Trinetra confirms 5 MT against our CPI-001.
   insCap.run(TODAY, 'PO', 'TW-0912', null, customerIds[0], null,
     parsed({ doc_type: 'PO', reference_no: 'TW-0912', qty_mt: 5 }),
     'PENDING',
-    'Trinetra Windings — PURCHASE ORDER No: TW-0912  from purchase@trinetra.com\nTo: AURALIS COPPER WORKS (P) LTD\nWe confirm purchase of 5 MT of 1.60 mm EC CU wire against your proforma. Delivery immediate. Payment 45 days.');
+    'Trinetra Windings — PURCHASE ORDER No: TW-0912  from purchase@trinetra.com\nTo: AURALIS COPPER WORKS (P) LTD\nWe confirm purchase of 5 MT of 8 mm CC rod against your proforma CPI-001. Delivery immediate. Payment 45 days.');
+
+  // Customer PO — Vega Cables orders 3 MT against CPI-003.
+  insCap.run(TODAY, 'PO', 'VC-3310', null, customerIds[2], null,
+    parsed({ doc_type: 'PO', reference_no: 'VC-3310', qty_mt: 3 }),
+    'PENDING',
+    'Vega Cables — PURCHASE ORDER No: VC-3310  from stores@vegacables.com\nTo: AURALIS COPPER WORKS (P) LTD\nPlease supply 3 MT — 1.60 mm EC CU wire as per your proforma CPI-003. Rate as quoted. Payment 30 days from delivery.');
+
+  // Customer PI acknowledgement — Crestline returns our CPI-002 signed.
+  insCap.run(TODAY, 'PI', 'CPI-002', null, customerIds[1], null,
+    parsed({ doc_type: 'PI', reference_no: 'CPI-002', qty_mt: 4 }),
+    'PENDING',
+    'Crestline Wire Works — from accounts@crestline.in\nSub: Acceptance of PROFORMA INVOICE No: CPI-002\nWe return your proforma CPI-002 duly signed and stamped for 4 MT — 2.5mm drawn wire. Kindly proceed; our formal PO follows by courier.');
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { copperNews, liveMarket, timeAgo } from '@/lib/market';
+import { clearFeedCache, copperNews, liveMarket, timeAgo } from '@/lib/market';
 
 const yahooBody = (price: number, prev: number) => ({
   chart: { result: [{ meta: { regularMarketPrice: price, chartPreviousClose: prev, regularMarketTime: 1783774373 } }] },
@@ -7,7 +7,7 @@ const yahooBody = (price: number, prev: number) => ({
 
 const jsonResponse = (body: unknown) => ({ ok: true, json: async () => body, text: async () => '' });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); clearFeedCache(); });
 
 describe('liveMarket', () => {
   it('converts COMEX $/lb into an indicative ₹/MT', async () => {
@@ -53,6 +53,33 @@ describe('copperNews', () => {
   it('returns an empty list when the feed is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
     expect(await copperNews()).toEqual([]);
+  });
+
+  it('falls back to Bing when Google returns nothing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({
+      ok: true,
+      text: async () => url.includes('news.google.com')
+        ? '<rss><channel></channel></rss>'
+        : '<rss><channel><item><title>Copper climbs</title><link>https://example.com/c</link><pubDate>Fri, 10 Jul 2026 08:00:00 GMT</pubDate></item></channel></rss>',
+    })));
+    const items = await copperNews();
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ title: 'Copper climbs', source: 'Bing News' });
+  });
+});
+
+describe('feed cache', () => {
+  it('keeps serving the last good value when the feed later fails (stale-on-error)', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      url.includes('HG%3DF') ? jsonResponse(yahooBody(6, 5.9)) : jsonResponse(yahooBody(95, 95))));
+    expect((await liveMarket())!.copperUsdLb).toBe(6);
+    vi.advanceTimersByTime(121_000); // past the TTL → refresh attempt
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+    const m = await liveMarket();
+    expect(m).not.toBeNull(); // stale value survives the outage
+    expect(m!.copperUsdLb).toBe(6);
+    vi.useRealTimers();
   });
 });
 
