@@ -395,7 +395,6 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   font: inherit; font-size: 15px; color: var(--ink);
   background: var(--input); border: 1px solid #e2d9ca; border-radius: 12px; padding: 10px 12px;
 }
-.btn-sm { padding: 10px 16px; font-size: 14px; display: inline-block; text-align: center; }
 .report-grid { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
 .report-card { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
 
@@ -435,7 +434,18 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   min-height: 44px;
 }
 .btn:hover { background: var(--copper-hover); color: #fff; }
-a.btn, a.btn-sm { color: #fff; }
+a.btn { color: #fff; }
+/* Small button — self-contained (copper fill) so it's visible used alone, not just
+   as `.btn .btn-sm`. Placed after `.btn` so its size/fill win when both are set. */
+.btn-sm {
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1.2;
+  color: #fff; background: var(--copper); border: none; border-radius: 11px;
+  padding: 9px 16px; cursor: pointer; display: inline-block; text-align: center;
+  transition: background 0.13s ease;
+}
+.btn-sm:hover { color: #fff; background: var(--copper-hover); }
+a.btn-sm { color: #fff; }
+a.btn-sm:hover { color: #fff; }
 .form-error {
   background: var(--bad-wash);
   color: var(--bad);
@@ -942,4 +952,23 @@ a.btn, a.btn-sm { color: #fff; }
   border-radius: 12px; padding: 11px 16px; margin-bottom: 12px; font-size: 14px; font-weight: 500; color: var(--ink); }
 .announce-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
 .ann-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line-soft); }
+.ann-row:first-child { border-top: none; }
 .ann-msg { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink); }
+
+/* admin console rework — collapsible create panels + compact form grid */
+.section-gap-sm { margin-top: 12px; }
+.reveal { padding: 0; }
+.reveal > summary { list-style: none; cursor: pointer; padding: 13px 18px; font-weight: 700; font-size: 14px;
+  color: var(--copper-text); user-select: none; }
+.reveal > summary::-webkit-details-marker { display: none; }
+.reveal > summary::marker { content: ''; }
+.reveal > summary:hover { color: var(--copper-hover); }
+.reveal[open] > summary { border-bottom: 1px solid var(--line); }
+.reveal-body { padding: 16px 18px; }
+.admin-form { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 16px; align-items: start; }
+.admin-form .chk-wide { grid-column: 1 / -1; }
+.admin-form-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+.admin-form-foot .muted { font-size: 12.5px; }
+.chk-row { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 6px; }
+.chk-row .chk { font-weight: 500; }
+@media (max-width: 720px) { .admin-form { grid-template-columns: 1fr; } }
